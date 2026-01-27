@@ -1,7 +1,7 @@
-use std::process;
+use std::process::{self, exit};
 
 use clap::{Parser, Subcommand};
-use kvs::KvStore;
+use kvs::{KvStore, Result};
 
 #[derive(Parser)]
 #[command(version, author)] // Read from `Cargo.toml`
@@ -26,14 +26,27 @@ pub enum Command {
 }
 
 fn main() {
+    if let Err(e) = run() {
+        println!("{}", e);
+        exit(1);
+    }
+}
+
+fn run() -> Result<()> {
     let cli = Cli::parse();
-    let _ = KvStore::new();
+    let mut kv_store = KvStore::open(".")?;
 
     match &cli.command {
-        Command::Get { key } => eprintln!("unimplemented"),
-        Command::Del { key } => eprintln!("unimplemented"),
-        Command::Set { key, value } => eprintln!("unimplemented"),
-    }
+        Command::Get { key } => {
+            if let Some(value) = kv_store.get(key.to_string())? {
+                println!("{}", value);
+            } else {
+                println!("{}", kvs::Error::KeyNotFound);
+            }
 
-    process::exit(1);
+            Ok(())
+        }
+        Command::Del { key } => kv_store.remove(key.to_string()),
+        Command::Set { key, value } => kv_store.set(key.to_string(), value.to_string()),
+    }
 }
