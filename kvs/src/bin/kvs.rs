@@ -1,4 +1,4 @@
-use std::process::{self, exit};
+use std::{env::current_dir, process::{self, exit}};
 
 use clap::{Parser, Subcommand};
 use kvs::{KvStore, Result};
@@ -34,7 +34,8 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    let mut kv_store = KvStore::open(".")?;
+    let path = current_dir()?;
+    let mut kv_store = KvStore::open(&path)?;
 
     match &cli.command {
         Command::Get { key } => {
