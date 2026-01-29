@@ -29,6 +29,7 @@ use walkdir::{DirEntry, WalkDir};
 pub struct KvStore {
     keydir: KeyDir,
     active_wal_path: PathBuf,
+    datastore_path: PathBuf
 }
 
 type KeyDir = HashMap<String, ValueInfo>;
@@ -77,6 +78,7 @@ impl KvStore {
         Ok(KvStore {
             keydir,
             active_wal_path,
+            datastore_path: path.into()
         })
     }
 
@@ -173,10 +175,14 @@ impl KvStore {
     fn get_active_wal_file(&mut self) -> Result<PathBuf> {
         let wal = File::open(&self.active_wal_path)?;
 
-        if io::BufReader::new(wal).lines().count() < 10 {
+        if io::BufReader::new(wal).lines().count() < 3 {
             Ok(self.active_wal_path.clone())
         } else {
             let next = self.get_next_wal().ok_or(Error::Storage)?;
+            let mut perms = fs::metadata(&self.active_wal_path)?.permissions();
+
+            perms.set_readonly(true);
+            fs::set_permissions(&self.active_wal_path, perms)?;
 
             self.active_wal_path = next.clone();
 
