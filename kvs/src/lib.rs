@@ -27,9 +27,11 @@ use walkdir::{DirEntry, WalkDir};
 /// assert_eq!(kvs.get("foo".into()), Some("bar".into()));
 /// ```
 pub struct KvStore {
-    keydir: HashMap<String, ValueInfo>,
+    keydir: KeyDir,
     active_wal_path: PathBuf,
 }
+
+type KeyDir = HashMap<String, ValueInfo>;
 
 #[derive(Debug)]
 struct ValueInfo {
@@ -60,33 +62,12 @@ enum Command {
 }
 
 impl KvStore {
+
     /// restore database index
     pub fn open(path: impl Into<PathBuf> + Copy) -> Result<Self> {
-        let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
         let default_active_wal = path.into().join("0001.wal");
 
-        for path in Self::get_wal_files_ordered(&path.into()) {
-            let metadata = fs::metadata(&path)?;
-
-            if metadata.len() > 0 {
-                let iter = json_lines::<Command, _>(&path)?;
-
-                let cmds = iter.collect::<io::Result<Vec<Command>>>()?;
-
-                for cmd in cmds {
-                    match cmd {
-                        Command::Set(k, _, offset) => keydir.insert(
-                            k,
-                            ValueInfo {
-                                wal_offset: offset,
-                                wal_path: path.to_owned(),
-                            },
-                        ),
-                        Command::Del(k, _) => keydir.remove(&k),
-                    };
-                }
-            }
-        }
+        let keydir = Self::restore_keydir(&path.into())?;
 
         let active_wal_path: PathBuf =
             Self::active_wal_file(&path.into()).unwrap_or(default_active_wal);
@@ -126,10 +107,10 @@ impl KvStore {
 
         let offset = metadata.size();
 
-        append_json_lines(&path, &[Command::Set(key.clone(), value, offset)])?;
+        Self::append_new_entry(&path, Command::Set(key.clone(), value, offset))?;
 
         self.keydir.insert(
-            key.clone(),
+            key,
             ValueInfo {
                 wal_offset: offset,
                 wal_path: path,
@@ -148,7 +129,7 @@ impl KvStore {
 
             let offset = metadata.size();
 
-            append_json_lines(path, &[Command::Del(key.clone(), offset)])?;
+            Self::append_new_entry(&path, Command::Del(key.clone(), offset))?;
 
             self.keydir.remove(&key);
 
@@ -156,6 +137,37 @@ impl KvStore {
         } else {
             Err(Error::KeyNotFound)
         }
+    }
+
+    fn restore_keydir(dir: &PathBuf) -> Result<KeyDir> {
+        let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
+
+        for path in Self::get_wal_files_ordered(&dir.into()) {
+            let metadata = fs::metadata(&path)?;
+
+            if metadata.len() > 0 {
+                let cmds_iter = json_lines::<Command, _>(&path)?;
+
+                for cmd in cmds_iter {
+                    match cmd? {
+                        Command::Set(k, _, offset) => keydir.insert(
+                            k,
+                            ValueInfo {
+                                wal_offset: offset,
+                                wal_path: path.to_owned(),
+                            },
+                        ),
+                        Command::Del(k, _) => keydir.remove(&k),
+                    };
+                }
+            }
+        }
+
+        Ok(keydir)
+    }
+
+    fn append_new_entry(wal_path: &PathBuf, command: Command) -> Result<()> {
+        Ok(append_json_lines(wal_path, &[command])?)
     }
 
     fn get_active_wal_file(&mut self) -> Result<PathBuf> {
