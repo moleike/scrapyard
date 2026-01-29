@@ -23,6 +23,7 @@ pub enum Command {
     Del {
         key: String,
     },
+    Compact
 }
 
 fn main() {
@@ -49,5 +50,6 @@ fn run() -> Result<()> {
         }
         Command::Del { key } => kv_store.remove(key.to_string()),
         Command::Set { key, value } => kv_store.set(key.to_string(), value.to_string()),
+        Command::Compact => kv_store.merge(),
     }
 }
