@@ -83,21 +83,21 @@ impl KvStore {
 
     /// get `key` if it exists
     pub fn get(&mut self, key: String) -> Result<Option<String>> {
-        if let Some(value_info) = self.keydir.get(&key) {
-            let path = &value_info.wal_path;
-            let mut fp = BufReader::new(File::open(path)?);
+        let Some(value_info) = self.keydir.get(&key) else {
+            return Ok(None);
+        };
 
-            fp.seek_relative(value_info.wal_offset as i64)?;
+        let path = &value_info.wal_path;
+        let mut fp = BufReader::new(File::open(path)?);
 
-            let mut reader = JsonLinesReader::new(fp);
+        fp.seek_relative(value_info.wal_offset as i64)?;
 
-            Ok(reader.read::<Command>()?.map(|cmd| match cmd {
-                Command::Set(_, value, _) => value,
-                Command::Del(_, _) => panic!(),
-            }))
-        } else {
-            Ok(None)
-        }
+        let mut reader = JsonLinesReader::new(fp);
+
+        Ok(reader.read::<Command>()?.map(|cmd| match cmd {
+            Command::Set(_, value, _) => value,
+            Command::Del(_, _) => panic!(),
+        }))
     }
 
     /// set or replace `key` to `value`
@@ -123,21 +123,21 @@ impl KvStore {
 
     /// remove an key if exists and return the value
     pub fn remove(&mut self, key: String) -> Result<()> {
-        if let Some(_) = self.get(key.clone())? {
-            let path = self.get_active_wal_file()?;
+        let Some(_) = self.get(key.clone())? else {
+            return Err(Error::KeyNotFound);
+        };
 
-            let metadata = fs::metadata(&path)?;
+        let path = self.get_active_wal_file()?;
 
-            let offset = metadata.size();
+        let metadata = fs::metadata(&path)?;
 
-            Self::append_new_entry(&path, Command::Del(key.clone(), offset))?;
+        let offset = metadata.size();
 
-            self.keydir.remove(&key);
+        Self::append_new_entry(&path, Command::Del(key.clone(), offset))?;
 
-            Ok(())
-        } else {
-            Err(Error::KeyNotFound)
-        }
+        self.keydir.remove(&key);
+
+        Ok(())
     }
 
     /// apply log compaction
