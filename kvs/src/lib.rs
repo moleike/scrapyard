@@ -318,11 +318,11 @@ impl KvStore {
     }
 }
 
-struct JsonLinesWithOffsetIter<T> {
-    inner: JsonLinesFileIter<T>,
+struct JsonLinesWithOffsetIter {
+    inner: JsonLinesFileIter<Command>,
 }
 
-impl<T> JsonLinesWithOffsetIter<T> {
+impl JsonLinesWithOffsetIter {
     pub fn new(reader: BufReader<File>) -> Self {
         JsonLinesWithOffsetIter {
             inner: JsonLinesIter::new(reader),
@@ -330,16 +330,14 @@ impl<T> JsonLinesWithOffsetIter<T> {
     }
 }
 
-impl<T> Iterator for JsonLinesWithOffsetIter<T>
-where
-    T: DeserializeOwned,
+impl Iterator for JsonLinesWithOffsetIter
 {
-    type Item = io::Result<(T, u64)>;
+    type Item = io::Result<(Command, u64)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let offset = self.inner.get_mut().stream_position().ok()?; // this is not correct
         let item = self.inner.next()?;
 
-        Some(item.map(|i| (i, offset)))
+        Some(item.map(|cmd| (cmd, offset)))
     }
 }
