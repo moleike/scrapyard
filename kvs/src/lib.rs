@@ -5,9 +5,10 @@
 //! a simple in-memory key/value store that maps strings to strings
 
 use regex::Regex;
+use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_jsonlines::{
-    append_json_lines, JsonLinesIter, JsonLinesReader, WriteExt,
+    append_json_lines, JsonLinesFileIter, JsonLinesIter, JsonLinesReader, WriteExt,
 };
 use std::fs::{self, exists, remove_file, File, OpenOptions};
 use std::io::{self, prelude::*, BufReader, BufWriter};
@@ -151,11 +152,11 @@ impl KvStore {
             }
 
             let reader = BufReader::new(File::open(&path)?);
-            let mut cmds_iter = JsonLinesIter::new(reader).into_iter();
-            let mut offset = cmds_iter.get_mut().stream_position()?;
 
-            while let Some(cmd) = cmds_iter.next() {
-                match cmd? {
+            for line in JsonLinesWithOffsetIter::new(reader) {
+                let (cmd, offset) = line?;
+
+                match cmd {
                     Command::Set(key, value) => {
                         if let Some(ValueInfo {
                             wal_path,
@@ -182,8 +183,6 @@ impl KvStore {
                     }
                     Command::Del(_) => (),
                 }
-
-                offset = cmds_iter.get_mut().stream_position()?;
             }
 
             remove_file(&path)?;
@@ -199,11 +198,11 @@ impl KvStore {
 
         for path in Self::get_wal_files_ordered(&dir.into()) {
             let reader = BufReader::new(File::open(&path)?);
-            let mut cmds_iter = JsonLinesIter::new(reader).into_iter();
-            let mut offset = cmds_iter.get_mut().stream_position()?;
 
-            while let Some(cmd) = cmds_iter.next() {
-                match cmd? {
+            for line in JsonLinesWithOffsetIter::new(reader) {
+                let (cmd, offset) = line?;
+
+                match cmd {
                     Command::Set(k, _) => keydir.insert(
                         k,
                         ValueInfo {
@@ -213,8 +212,6 @@ impl KvStore {
                     ),
                     Command::Del(k) => keydir.remove(&k),
                 };
-
-                offset = cmds_iter.get_mut().stream_position()?;
             }
         }
 
@@ -251,10 +248,7 @@ impl KvStore {
 
     fn get_next_merged_file(&mut self) -> Option<PathBuf> {
         let cur = self.get_active_wal_seq_num()?;
-        let base = &self.active_wal_path.parent()?;
-
-        // merged files are odd-numbered
-        let path = base.join(PathBuf::from(format!("{:04}.wal", cur - 1)));
+        let path = self.get_data_file_path(cur - 1);
 
         if exists(&path).ok()? {
             // files already merged
@@ -262,6 +256,12 @@ impl KvStore {
         } else {
             Some(path)
         }
+    }
+
+    fn get_data_file_path(&self, file_id: u32) -> PathBuf {
+        let base = &self.datastore_path;
+
+        base.join(PathBuf::from(format!("{:04}.wal", file_id)))
     }
 
     fn get_next_wal_file(&mut self) -> Option<PathBuf> {
@@ -272,10 +272,9 @@ impl KvStore {
         }
 
         let cur = self.get_active_wal_seq_num()?;
-        let base = &self.active_wal_path.parent()?;
 
         // log files are even-numbered
-        let path = base.join(PathBuf::from(format!("{:04}.wal", cur + 2)));
+        let path = self.get_data_file_path(cur + 2);
 
         Some(path)
     }
@@ -316,5 +315,31 @@ impl KvStore {
             .write(true)
             .open(path)
             .and(Ok(()))?)
+    }
+}
+
+struct JsonLinesWithOffsetIter<T> {
+    inner: JsonLinesFileIter<T>,
+}
+
+impl<T> JsonLinesWithOffsetIter<T> {
+    pub fn new(reader: BufReader<File>) -> Self {
+        JsonLinesWithOffsetIter {
+            inner: JsonLinesIter::new(reader),
+        }
+    }
+}
+
+impl<T> Iterator for JsonLinesWithOffsetIter<T>
+where
+    T: DeserializeOwned,
+{
+    type Item = io::Result<(T, u64)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let offset = self.inner.get_mut().stream_position().ok()?; // this is not correct
+        let item = self.inner.next()?;
+
+        Some(item.map(|i| (i, offset)))
     }
 }
