@@ -6,7 +6,9 @@
 
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use serde_jsonlines::{append_json_lines, json_lines, JsonLinesReader, WriteExt};
+use serde_jsonlines::{
+    append_json_lines, JsonLinesIter, JsonLinesReader, WriteExt,
+};
 use std::fs::{self, exists, remove_file, File, OpenOptions};
 use std::io::{self, prelude::*, BufReader, BufWriter};
 use std::os::unix::fs::MetadataExt;
@@ -58,8 +60,8 @@ pub type Result<T> = result::Result<T, Error>;
 
 #[derive(Serialize, Deserialize, Debug)]
 enum Command {
-    Set(String, String, u64),
-    Del(String, u64),
+    Set(String, String),
+    Del(String),
 }
 
 impl KvStore {
@@ -95,20 +97,17 @@ impl KvStore {
         let mut reader = JsonLinesReader::new(fp);
 
         Ok(reader.read::<Command>()?.map(|cmd| match cmd {
-            Command::Set(_, value, _) => value,
-            Command::Del(_, _) => panic!(),
+            Command::Set(_, value) => value,
+            Command::Del(_) => panic!(),
         }))
     }
 
     /// set or replace `key` to `value`
     pub fn set(&mut self, key: String, value: String) -> Result<()> {
         let path = self.get_active_wal_file()?;
+        let offset = fs::metadata(&path)?.size();
 
-        let metadata = fs::metadata(&path)?;
-
-        let offset = metadata.size();
-
-        Self::append_new_entry(&path, Command::Set(key.clone(), value, offset))?;
+        Self::append_new_entry(&path, Command::Set(key.clone(), value))?;
 
         self.keydir.insert(
             key,
@@ -129,11 +128,7 @@ impl KvStore {
 
         let path = self.get_active_wal_file()?;
 
-        let metadata = fs::metadata(&path)?;
-
-        let offset = metadata.size();
-
-        Self::append_new_entry(&path, Command::Del(key.clone(), offset))?;
+        Self::append_new_entry(&path, Command::Del(key.clone()))?;
 
         self.keydir.remove(&key);
 
@@ -155,11 +150,13 @@ impl KvStore {
                 continue;
             }
 
-            let cmds_iter = json_lines::<Command, _>(&path)?;
+            let reader = BufReader::new(File::open(&path)?);
+            let mut cmds_iter = JsonLinesIter::new(reader).into_iter();
+            let mut offset = cmds_iter.get_mut().stream_position()?;
 
-            for cmd in cmds_iter {
+            while let Some(cmd) = cmds_iter.next() {
                 match cmd? {
-                    Command::Set(key, value, offset) => {
+                    Command::Set(key, value) => {
                         if let Some(ValueInfo {
                             wal_path,
                             wal_offset,
@@ -168,11 +165,7 @@ impl KvStore {
                             if *wal_path == path && *wal_offset == offset {
                                 let offset = writer.stream_position()?;
 
-                                writer.write_json_lines(&[Command::Set(
-                                    key.clone(),
-                                    value,
-                                    offset,
-                                )])?;
+                                writer.write_json_lines(&[Command::Set(key.clone(), value)])?;
 
                                 self.keydir
                                     .insert(
@@ -187,8 +180,10 @@ impl KvStore {
                             }
                         }
                     }
-                    Command::Del(_, _) => (),
+                    Command::Del(_) => (),
                 }
+
+                offset = cmds_iter.get_mut().stream_position()?;
             }
 
             remove_file(&path)?;
@@ -203,19 +198,23 @@ impl KvStore {
         let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
 
         for path in Self::get_wal_files_ordered(&dir.into()) {
-            let cmds_iter = json_lines::<Command, _>(&path)?;
+            let reader = BufReader::new(File::open(&path)?);
+            let mut cmds_iter = JsonLinesIter::new(reader).into_iter();
+            let mut offset = cmds_iter.get_mut().stream_position()?;
 
-            for cmd in cmds_iter {
+            while let Some(cmd) = cmds_iter.next() {
                 match cmd? {
-                    Command::Set(k, _, offset) => keydir.insert(
+                    Command::Set(k, _) => keydir.insert(
                         k,
                         ValueInfo {
                             wal_offset: offset,
                             wal_path: path.to_owned(),
                         },
                     ),
-                    Command::Del(k, _) => keydir.remove(&k),
+                    Command::Del(k) => keydir.remove(&k),
                 };
+
+                offset = cmds_iter.get_mut().stream_position()?;
             }
         }
 
