@@ -31,7 +31,7 @@ use walkdir::{DirEntry, WalkDir};
 /// ```
 pub struct KvStore {
     keydir: KeyDir,
-    active_wal_path: PathBuf,
+    active_file_id: u32,
     datastore_path: PathBuf,
 }
 
@@ -39,8 +39,8 @@ type KeyDir = HashMap<String, ValueInfo>;
 
 #[derive(Debug)]
 struct ValueInfo {
-    wal_path: PathBuf,
-    wal_offset: u64,
+    file_id: u32,
+    file_offset: u64,
 }
 
 #[derive(Error, Debug)]
@@ -67,19 +67,22 @@ enum Command {
 
 impl KvStore {
     /// restore database index
-    pub fn open(path: impl Into<PathBuf> + Copy) -> Result<Self> {
-        let default_active_wal = path.into().join("0000.wal");
+    pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
+        let path: PathBuf = path.into();
 
-        let keydir = Self::restore_keydir(&path.into())?;
+        let keydir = Self::restore_keydir(&path)?;
 
-        let active_wal_path: PathBuf =
-            Self::active_wal_file(&path.into()).unwrap_or(default_active_wal);
+        let default_active_wal = path.join("0000.wal");
+
+        let active_wal_path = Self::active_wal_file(&path).unwrap_or(default_active_wal);
 
         Self::touch(&active_wal_path)?;
 
+        let active_file_id = Self::get_data_file_id(active_wal_path);
+
         Ok(KvStore {
             keydir,
-            active_wal_path,
+            active_file_id,
             datastore_path: path.into(),
         })
     }
@@ -90,10 +93,9 @@ impl KvStore {
             return Ok(None);
         };
 
-        let path = &value_info.wal_path;
-        let mut fp = BufReader::new(File::open(path)?);
+        let mut fp = BufReader::new(File::open(self.get_data_file_path(value_info.file_id))?);
 
-        fp.seek_relative(value_info.wal_offset as i64)?;
+        fp.seek_relative(value_info.file_offset as i64)?;
 
         let mut reader = JsonLinesReader::new(fp);
 
@@ -113,8 +115,8 @@ impl KvStore {
         self.keydir.insert(
             key,
             ValueInfo {
-                wal_offset: offset,
-                wal_path: path,
+                file_offset: offset,
+                file_id: self.active_file_id,
             },
         );
 
@@ -138,8 +140,14 @@ impl KvStore {
 
     /// apply log compaction
     pub fn merge(&mut self) -> Result<()> {
+        let Some(merged_file) = self.get_next_merged_file() else {
+            return Ok(());
+        };
+
+        let merged_file_id = Self::get_data_file_id(&merged_file);
+
         let wal_files = Self::get_wal_files_ordered(&self.datastore_path);
-        let merged_file = self.get_next_merged_file().ok_or(Error::Storage)?;
+
         let fp = OpenOptions::new()
             .append(true)
             .create(true)
@@ -147,7 +155,9 @@ impl KvStore {
         let mut writer = BufWriter::new(fp);
 
         for path in wal_files {
-            if path == self.active_wal_path {
+            let id = Self::get_data_file_id(&path);
+
+            if id == self.active_file_id {
                 continue;
             }
 
@@ -157,11 +167,11 @@ impl KvStore {
                 match cmd {
                     Command::Set(key, value) => {
                         if let Some(ValueInfo {
-                            wal_path,
-                            wal_offset,
+                            file_id,
+                            file_offset,
                         }) = self.keydir.get(&key)
                         {
-                            if *wal_path == path && *wal_offset == offset {
+                            if *file_id == id && *file_offset == offset {
                                 let offset = writer.stream_position()?;
 
                                 writer.write_json_lines(&[Command::Set(key.clone(), value)])?;
@@ -170,8 +180,8 @@ impl KvStore {
                                     .insert(
                                         key,
                                         ValueInfo {
-                                            wal_path: merged_file.clone(),
-                                            wal_offset: offset,
+                                            file_offset: offset,
+                                            file_id: merged_file_id,
                                         },
                                     )
                                     .ok_or(Error::Storage)
@@ -195,6 +205,8 @@ impl KvStore {
         let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
 
         for path in Self::get_wal_files_ordered(dir) {
+            let file_id = Self::get_data_file_id(&path);
+
             for line in JsonLinesWithOffsetIter::json_lines(&path)? {
                 let (cmd, offset) = line?;
 
@@ -202,8 +214,8 @@ impl KvStore {
                     Command::Set(k, _) => keydir.insert(
                         k,
                         ValueInfo {
-                            wal_offset: offset,
-                            wal_path: path.to_owned(),
+                            file_offset: offset,
+                            file_id: file_id,
                         },
                     ),
                     Command::Del(k) => keydir.remove(&k),
@@ -219,32 +231,30 @@ impl KvStore {
     }
 
     fn get_active_wal_file(&mut self) -> Result<PathBuf> {
-        let wal = File::open(&self.active_wal_path)?;
+        let path = self.get_data_file_path(self.active_file_id);
+        let wal = File::open(&path)?;
 
         if BufReader::new(wal).lines().count() < 100 {
-            Ok(self.active_wal_path.clone())
+            Ok(path)
         } else {
-            let next = self.get_next_wal_file().ok_or(Error::Storage)?;
-
-            Self::touch(&next)?;
-
-            self.active_wal_path = next.clone();
-
-            Ok(next)
+            Ok(self.get_next_wal_file()?)
         }
     }
 
-    fn get_active_wal_seq_num(&mut self) -> Option<u32> {
-        let path = &self.active_wal_path;
-        let path = path.clone().into_os_string().into_string().ok()?;
-        let re = Regex::new(r"([0-9]{4}).wal").ok()?;
-
-        re.captures(&path)?.get(1)?.as_str().parse().ok()
+    // how do I make it more obvious that I don't know how to handler errors
+    fn get_data_file_id<P: AsRef<Path>>(path: P) -> u32 {
+        path.as_ref()
+            .file_stem()
+            .unwrap()
+            .to_os_string()
+            .into_string()
+            .unwrap()
+            .parse()
+            .unwrap()
     }
 
     fn get_next_merged_file(&mut self) -> Option<PathBuf> {
-        let cur = self.get_active_wal_seq_num()?;
-        let path = self.get_data_file_path(cur - 1);
+        let path = self.get_data_file_path(self.active_file_id - 1);
 
         if exists(&path).ok()? {
             // files already merged
@@ -260,26 +270,29 @@ impl KvStore {
         base.join(PathBuf::from(format!("{:04}.wal", file_id)))
     }
 
-    fn get_next_wal_file(&mut self) -> Option<PathBuf> {
+    fn get_next_wal_file(&mut self) -> Result<PathBuf> {
         // obviously this is not how you would run a compaction process,
         // but we are running a single-threaded server and so it's ok
         if self.get_total_num_wal_files() > 5 {
-            self.merge().ok()?
+            self.merge()?
         }
 
-        let cur = self.get_active_wal_seq_num()?;
-
         // log files are even-numbered
-        let path = self.get_data_file_path(cur + 2);
+        self.active_file_id += 2;
+        let next = self.get_data_file_path(self.active_file_id);
 
-        Some(path)
+        Self::touch(&next)?;
+
+        Ok(next)
     }
 
     fn is_wal_file(entry: &DirEntry) -> bool {
+        let re = Regex::new(r"([0-9]{4}).wal").unwrap();
+
         entry
             .file_name()
             .to_str()
-            .map(|s| s.ends_with(".wal"))
+            .map(|s| re.is_match(s))
             .unwrap_or(false)
     }
 
@@ -331,8 +344,7 @@ impl JsonLinesWithOffsetIter {
     }
 }
 
-impl Iterator for JsonLinesWithOffsetIter
-{
+impl Iterator for JsonLinesWithOffsetIter {
     type Item = io::Result<(Command, u64)>;
 
     fn next(&mut self) -> Option<Self::Item> {
