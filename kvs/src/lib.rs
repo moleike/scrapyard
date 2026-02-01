@@ -151,9 +151,7 @@ impl KvStore {
                 continue;
             }
 
-            let reader = BufReader::new(File::open(&path)?);
-
-            for line in JsonLinesWithOffsetIter::new(reader) {
+            for line in JsonLinesWithOffsetIter::json_lines(&path)? {
                 let (cmd, offset) = line?;
 
                 match cmd {
@@ -193,13 +191,11 @@ impl KvStore {
         Ok(())
     }
 
-    fn restore_keydir(dir: &PathBuf) -> Result<KeyDir> {
+    fn restore_keydir<P: AsRef<Path>>(dir: P) -> Result<KeyDir> {
         let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
 
-        for path in Self::get_wal_files_ordered(&dir.into()) {
-            let reader = BufReader::new(File::open(&path)?);
-
-            for line in JsonLinesWithOffsetIter::new(reader) {
+        for path in Self::get_wal_files_ordered(dir) {
+            for line in JsonLinesWithOffsetIter::json_lines(&path)? {
                 let (cmd, offset) = line?;
 
                 match cmd {
@@ -288,7 +284,7 @@ impl KvStore {
     }
 
     /// return wal files in chronological order
-    fn get_wal_files_ordered(path: &PathBuf) -> Vec<PathBuf> {
+    fn get_wal_files_ordered<P: AsRef<Path>>(path: P) -> Vec<PathBuf> {
         WalkDir::new(path)
             .max_depth(1)
             .sort_by_file_name()
@@ -303,13 +299,13 @@ impl KvStore {
         Self::get_wal_files_ordered(&self.datastore_path).len()
     }
 
-    fn active_wal_file(path: &PathBuf) -> Option<PathBuf> {
+    fn active_wal_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
         Self::get_wal_files_ordered(path)
             .into_iter()
             .reduce(|acc, e| acc.max(e)) // I know
     }
 
-    fn touch(path: &Path) -> Result<()> {
+    fn touch<P: AsRef<Path>>(path: P) -> Result<()> {
         Ok(OpenOptions::new()
             .create(true)
             .write(true)
@@ -327,6 +323,11 @@ impl JsonLinesWithOffsetIter {
         JsonLinesWithOffsetIter {
             inner: JsonLinesIter::new(reader),
         }
+    }
+
+    pub fn json_lines<P: AsRef<Path>>(path: P) -> Result<JsonLinesWithOffsetIter> {
+        let reader = BufReader::new(File::open(path)?);
+        Ok(Self::new(reader))
     }
 }
 
