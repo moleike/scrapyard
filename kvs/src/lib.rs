@@ -242,6 +242,8 @@ impl KvStore {
     }
 
     // how do I make it more obvious that I don't know how to handler errors
+    // albeit without proof, paths inputs to this method come from
+    // get_wal_files_ordered or derived from the current active file
     fn get_data_file_id<P: AsRef<Path>>(path: P) -> u32 {
         path.as_ref()
             .file_stem()
@@ -254,6 +256,7 @@ impl KvStore {
     }
 
     fn get_next_merged_file(&mut self) -> Option<PathBuf> {
+        // merged file is always one less than current active file
         let path = self.get_data_file_path(self.active_file_id - 1);
 
         if exists(&path).ok()? {
@@ -289,11 +292,12 @@ impl KvStore {
     fn is_wal_file(entry: &DirEntry) -> bool {
         let re = Regex::new(r"([0-9]{4}).wal").unwrap();
 
-        entry
-            .file_name()
-            .to_str()
-            .map(|s| re.is_match(s))
-            .unwrap_or(false)
+        entry.file_type().is_file()
+            && entry
+                .file_name()
+                .to_str()
+                .map(|s| re.is_match(s))
+                .unwrap_or(false)
     }
 
     /// return wal files in chronological order
