@@ -1,7 +1,7 @@
 use std::{env::current_dir, process::{self, exit}};
 
 use clap::{Parser, Subcommand};
-use kvs::{KvStore, Result};
+use kvs::{messages::*, Result};
 
 #[derive(Parser)]
 #[command(version, author)] // Read from `Cargo.toml`
@@ -36,20 +36,21 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     let path = current_dir()?;
-    let mut kv_store = KvStore::open(&path)?;
+    //let mut kv_store = KvStore::open(&path)?;
 
-    match &cli.command {
-        Command::Get { key } => {
-            if let Some(value) = kv_store.get(key.to_string())? {
-                println!("{}", value);
-            } else {
-                println!("{}", kvs::Error::KeyNotFound);
-            }
+    //match &cli.command {
+    //    Command::Get { key } => {
+    //        if let Some(value) = kv_store.get(key.to_string())? {
+    //            println!("{}", value);
+    //        } else {
+    //            println!("{}", kvs::Error::KeyNotFound);
+    //        }
 
-            Ok(())
-        }
-        Command::Del { key } => kv_store.remove(key.to_string()),
-        Command::Set { key, value } => kv_store.set(key.to_string(), value.to_string()),
-        Command::Compact => kv_store.merge(),
-    }
+    //        Ok(())
+    //    }
+    //    Command::Del { key } => kv_store.remove(key.to_string()),
+    //    Command::Set { key, value } => kv_store.set(key.to_string(), value.to_string()),
+    //    Command::Compact => kv_store.merge(),
+    //}
+    Ok(())
 }
