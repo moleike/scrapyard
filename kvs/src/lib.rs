@@ -1,9 +1,11 @@
 pub mod messages;
 
-mod error;
-
 pub mod server;
 
-mod client;
+pub mod client;
+
+mod error;
 
 pub use error::{Error, Result};
+
+mod engine;

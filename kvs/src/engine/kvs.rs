@@ -17,8 +17,9 @@ use std::path::Path;
 use std::{collections::HashMap, path::PathBuf, result};
 use walkdir::{DirEntry, WalkDir};
 
-mod engine;
-pub use engine::*;
+use crate::engine::KvsEngine;
+use crate::Error;
+
 /// the key/value store is an abstract data type
 ///
 /// # Examples
@@ -52,7 +53,7 @@ enum Command {
 
 impl KvsEngine for KvStore {
     /// get `key` if it exists
-    fn get(&mut self, key: String) -> Result<Option<String>> {
+    fn get(&mut self, key: String) -> crate::Result<Option<String>> {
         let Some(value_info) = self.keydir.get(&key) else {
             return Ok(None);
         };
@@ -70,7 +71,7 @@ impl KvsEngine for KvStore {
     }
 
     /// set or replace `key` to `value`
-    fn set(&mut self, key: String, value: String) -> Result<()> {
+    fn set(&mut self, key: String, value: String) -> crate::Result<()> {
         let path = self.get_active_wal_file()?;
         let offset = fs::metadata(&path)?.size();
 
@@ -88,7 +89,7 @@ impl KvsEngine for KvStore {
     }
 
     /// remove an key if exists and return the value
-    fn remove(&mut self, key: String) -> Result<()> {
+    fn remove(&mut self, key: String) -> crate::Result<()> {
         let Some(_) = self.get(key.clone())? else {
             return Err(Error::KeyNotFound);
         };
@@ -101,12 +102,11 @@ impl KvsEngine for KvStore {
 
         Ok(())
     }
-
 }
 
 impl KvStore {
     /// restore database index
-    pub fn open(path: impl Into<PathBuf>) -> Result<Self> {
+    pub fn open(path: impl Into<PathBuf>) -> crate::Result<Self> {
         let path: PathBuf = path.into();
 
         let keydir = Self::restore_keydir(&path)?;
@@ -127,7 +127,7 @@ impl KvStore {
     }
 
     /// apply log compaction
-    pub fn merge(&mut self) -> Result<()> {
+    pub fn merge(&mut self) -> crate::Result<()> {
         let Some(merged_file) = self.get_next_merged_file() else {
             return Ok(());
         };
@@ -189,7 +189,7 @@ impl KvStore {
         Ok(())
     }
 
-    fn restore_keydir<P: AsRef<Path>>(dir: P) -> Result<KeyDir> {
+    fn restore_keydir<P: AsRef<Path>>(dir: P) -> crate::Result<KeyDir> {
         let mut keydir: HashMap<String, ValueInfo> = HashMap::new();
 
         for path in Self::get_wal_files_ordered(dir) {
@@ -214,11 +214,11 @@ impl KvStore {
         Ok(keydir)
     }
 
-    fn append_new_entry(wal_path: &PathBuf, command: Command) -> Result<()> {
+    fn append_new_entry(wal_path: &PathBuf, command: Command) -> crate::Result<()> {
         Ok(append_json_lines(wal_path, &[command])?)
     }
 
-    fn get_active_wal_file(&mut self) -> Result<PathBuf> {
+    fn get_active_wal_file(&mut self) -> crate::Result<PathBuf> {
         let path = self.get_data_file_path(self.active_file_id);
         let wal = File::open(&path)?;
 
@@ -261,7 +261,7 @@ impl KvStore {
         base.join(PathBuf::from(format!("{:04}.wal", file_id)))
     }
 
-    fn get_next_wal_file(&mut self) -> Result<PathBuf> {
+    fn get_next_wal_file(&mut self) -> crate::Result<PathBuf> {
         // obviously this is not how you would run a compaction process,
         // but we are running a single-threaded server and so it's ok
         if self.get_total_num_wal_files() > 5 {
@@ -310,7 +310,7 @@ impl KvStore {
             .reduce(|acc, e| acc.max(e)) // I know
     }
 
-    fn touch<P: AsRef<Path>>(path: P) -> Result<()> {
+    fn touch<P: AsRef<Path>>(path: P) -> crate::Result<()> {
         Ok(OpenOptions::new()
             .create(true)
             .write(true)
@@ -330,7 +330,7 @@ impl JsonLinesWithOffsetIter {
         }
     }
 
-    pub fn json_lines<P: AsRef<Path>>(path: P) -> Result<JsonLinesWithOffsetIter> {
+    pub fn json_lines<P: AsRef<Path>>(path: P) -> crate::Result<JsonLinesWithOffsetIter> {
         let reader = BufReader::new(File::open(path)?);
         Ok(Self::new(reader))
     }

@@ -1,13 +1,15 @@
-use std::{env::current_dir, process::{self, exit}};
+use std::{env::current_dir, net::SocketAddr, process::{self, exit}, str::FromStr};
 
 use clap::{Parser, Subcommand};
-use kvs::{messages::*, Result};
+use kvs::{client::{self, Client}, messages::*, Result};
 
 #[derive(Parser)]
 #[command(version, author)] // Read from `Cargo.toml`
 pub struct Cli {
     #[command(subcommand)]
     command: Command,
+    #[arg(long, value_parser = clap::value_parser!(SocketAddr))]
+    addr: Option<SocketAddr>,
 }
 
 #[derive(Subcommand)]
@@ -36,21 +38,17 @@ fn main() {
 fn run() -> Result<()> {
     let cli = Cli::parse();
     let path = current_dir()?;
-    //let mut kv_store = KvStore::open(&path)?;
+    let addr = cli.addr.unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
 
-    //match &cli.command {
-    //    Command::Get { key } => {
-    //        if let Some(value) = kv_store.get(key.to_string())? {
-    //            println!("{}", value);
-    //        } else {
-    //            println!("{}", kvs::Error::KeyNotFound);
-    //        }
+    let mut client = Client::connect(addr)?;
 
-    //        Ok(())
-    //    }
-    //    Command::Del { key } => kv_store.remove(key.to_string()),
-    //    Command::Set { key, value } => kv_store.set(key.to_string(), value.to_string()),
-    //    Command::Compact => kv_store.merge(),
-    //}
+    match &cli.command {
+        Command::Get { key } => {
+            let value = client.get(key)?;
+
+            println!("{}", value)
+        },
+        _ => println!("not implemented")
+    }
     Ok(())
 }

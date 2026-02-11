@@ -3,11 +3,14 @@ use std::net::TcpListener;
 use std::process::exit;
 use std::str::FromStr;
 
+use kvs::server::Server;
 use kvs::Result;
 use kvs::server;
+use tracing::debug;
 use tracing::info;
 
 use clap::{Parser, ValueEnum};
+use tracing::trace;
 use tracing::Level;
 
 #[derive(Parser)]
@@ -36,22 +39,20 @@ fn main() {
 fn run() -> Result<()> {
     let subscriber = tracing_subscriber::fmt()
         .compact()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::TRACE)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
     let cli = Cli::parse();
 
-    info!("{:?} {:?}", cli.addr, cli.engine);
-
     let addr = cli.addr.unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
 
-    let listener = TcpListener::bind(addr)?;
+    info!("{:?} {:?}", addr, cli.engine);
 
-    info!("listening on {:?}", addr);
+    let mut server = Server::new(addr, None)?;
 
-    server::run(listener);
+    server.run()?;
 
     Ok(())
 }

@@ -1,4 +1,5 @@
 use std::{io, result};
+use flatbuffers::InvalidFlatbuffer;
 use thiserror::Error;
 
 /// errors
@@ -12,7 +13,11 @@ pub enum Error {
     WalkDirError(#[from] walkdir::Error),
     #[error("Key not found")]
     KeyNotFound,
-    #[error("Unknown key-value store error")]
+    #[error("Server error")]
+    ServerError,
+    #[error("Protocol error")]
+    ProtocolError(#[from] InvalidFlatbuffer),
+    #[error("Unknown error")]
     Unknown,
 }
 

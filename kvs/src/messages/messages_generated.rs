@@ -15,9 +15,9 @@ pub const ENUM_MAX_COMMAND: u8 = 3;
 #[allow(non_camel_case_types)]
 pub const ENUM_VALUES_COMMAND: [Command; 4] = [
   Command::NONE,
-  Command::Get,
   Command::Set,
   Command::Delete,
+  Command::Get,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -26,25 +26,25 @@ pub struct Command(pub u8);
 #[allow(non_upper_case_globals)]
 impl Command {
   pub const NONE: Self = Self(0);
-  pub const Get: Self = Self(1);
-  pub const Set: Self = Self(2);
-  pub const Delete: Self = Self(3);
+  pub const Set: Self = Self(1);
+  pub const Delete: Self = Self(2);
+  pub const Get: Self = Self(3);
 
   pub const ENUM_MIN: u8 = 0;
   pub const ENUM_MAX: u8 = 3;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::NONE,
-    Self::Get,
     Self::Set,
     Self::Delete,
+    Self::Get,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
     match self {
       Self::NONE => Some("NONE"),
-      Self::Get => Some("Get"),
       Self::Set => Some("Set"),
       Self::Delete => Some("Delete"),
+      Self::Get => Some("Get"),
       _ => None,
     }
   }
@@ -109,7 +109,7 @@ pub const ENUM_MAX_ERROR_CODE: i8 = 2;
 #[allow(non_camel_case_types)]
 pub const ENUM_VALUES_ERROR_CODE: [ErrorCode; 3] = [
   ErrorCode::Unknown,
-  ErrorCode::KeyNotFound,
+  ErrorCode::NotFound,
   ErrorCode::StorageFull,
 ];
 
@@ -119,21 +119,21 @@ pub struct ErrorCode(pub i8);
 #[allow(non_upper_case_globals)]
 impl ErrorCode {
   pub const Unknown: Self = Self(0);
-  pub const KeyNotFound: Self = Self(1);
+  pub const NotFound: Self = Self(1);
   pub const StorageFull: Self = Self(2);
 
   pub const ENUM_MIN: i8 = 0;
   pub const ENUM_MAX: i8 = 2;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::Unknown,
-    Self::KeyNotFound,
+    Self::NotFound,
     Self::StorageFull,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
     match self {
       Self::Unknown => Some("Unknown"),
-      Self::KeyNotFound => Some("KeyNotFound"),
+      Self::NotFound => Some("NotFound"),
       Self::StorageFull => Some("StorageFull"),
       _ => None,
     }
@@ -190,48 +190,48 @@ impl<'a> ::flatbuffers::Verifiable for ErrorCode {
 
 impl ::flatbuffers::SimpleToVerifyInSlice for ErrorCode {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MIN_RESPONSE: u8 = 0;
+pub const ENUM_MIN_REPLY: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_RESPONSE: u8 = 3;
+pub const ENUM_MAX_REPLY: u8 = 3;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_RESPONSE: [Response; 4] = [
-  Response::NONE,
-  Response::Unit,
-  Response::GetValue,
-  Response::Failure,
+pub const ENUM_VALUES_REPLY: [Reply; 4] = [
+  Reply::NONE,
+  Reply::Success,
+  Reply::Failure,
+  Reply::GetValue,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[repr(transparent)]
-pub struct Response(pub u8);
+pub struct Reply(pub u8);
 #[allow(non_upper_case_globals)]
-impl Response {
+impl Reply {
   pub const NONE: Self = Self(0);
-  pub const Unit: Self = Self(1);
-  pub const GetValue: Self = Self(2);
-  pub const Failure: Self = Self(3);
+  pub const Success: Self = Self(1);
+  pub const Failure: Self = Self(2);
+  pub const GetValue: Self = Self(3);
 
   pub const ENUM_MIN: u8 = 0;
   pub const ENUM_MAX: u8 = 3;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::NONE,
-    Self::Unit,
-    Self::GetValue,
+    Self::Success,
     Self::Failure,
+    Self::GetValue,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
     match self {
       Self::NONE => Some("NONE"),
-      Self::Unit => Some("Unit"),
-      Self::GetValue => Some("GetValue"),
+      Self::Success => Some("Success"),
       Self::Failure => Some("Failure"),
+      Self::GetValue => Some("GetValue"),
       _ => None,
     }
   }
 }
-impl ::core::fmt::Debug for Response {
+impl ::core::fmt::Debug for Reply {
   fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
     if let Some(name) = self.variant_name() {
       f.write_str(name)
@@ -240,7 +240,7 @@ impl ::core::fmt::Debug for Response {
     }
   }
 }
-impl<'a> ::flatbuffers::Follow<'a> for Response {
+impl<'a> ::flatbuffers::Follow<'a> for Reply {
   type Inner = Self;
   #[inline]
   unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
@@ -249,15 +249,15 @@ impl<'a> ::flatbuffers::Follow<'a> for Response {
   }
 }
 
-impl ::flatbuffers::Push for Response {
-    type Output = Response;
+impl ::flatbuffers::Push for Reply {
+    type Output = Reply;
     #[inline]
     unsafe fn push(&self, dst: &mut [u8], _written_len: usize) {
         unsafe { ::flatbuffers::emplace_scalar::<u8>(dst, self.0) };
     }
 }
 
-impl ::flatbuffers::EndianScalar for Response {
+impl ::flatbuffers::EndianScalar for Reply {
   type Scalar = u8;
   #[inline]
   fn to_little_endian(self) -> u8 {
@@ -271,7 +271,7 @@ impl ::flatbuffers::EndianScalar for Response {
   }
 }
 
-impl<'a> ::flatbuffers::Verifiable for Response {
+impl<'a> ::flatbuffers::Verifiable for Reply {
   #[inline]
   fn run_verifier(
     v: &mut ::flatbuffers::Verifier, pos: usize
@@ -280,105 +280,9 @@ impl<'a> ::flatbuffers::Verifiable for Response {
   }
 }
 
-impl ::flatbuffers::SimpleToVerifyInSlice for Response {}
-pub struct ResponseUnionTableOffset {}
+impl ::flatbuffers::SimpleToVerifyInSlice for Reply {}
+pub struct ReplyUnionTableOffset {}
 
-pub enum GetOffset {}
-#[derive(Copy, Clone, PartialEq)]
-
-pub struct Get<'a> {
-  pub _tab: ::flatbuffers::Table<'a>,
-}
-
-impl<'a> ::flatbuffers::Follow<'a> for Get<'a> {
-  type Inner = Get<'a>;
-  #[inline]
-  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
-    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
-  }
-}
-
-impl<'a> Get<'a> {
-  pub const VT_KEY: ::flatbuffers::VOffsetT = 4;
-
-  #[inline]
-  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-    Get { _tab: table }
-  }
-  #[allow(unused_mut)]
-  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
-    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    args: &'args GetArgs<'args>
-  ) -> ::flatbuffers::WIPOffset<Get<'bldr>> {
-    let mut builder = GetBuilder::new(_fbb);
-    if let Some(x) = args.key { builder.add_key(x); }
-    builder.finish()
-  }
-
-
-  #[inline]
-  pub fn key(&self) -> Option<&'a str> {
-    // Safety:
-    // Created from valid Table for this object
-    // which contains a valid value in this slot
-    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(Get::VT_KEY, None)}
-  }
-}
-
-impl ::flatbuffers::Verifiable for Get<'_> {
-  #[inline]
-  fn run_verifier(
-    v: &mut ::flatbuffers::Verifier, pos: usize
-  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
-    v.visit_table(pos)?
-     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("key", Self::VT_KEY, false)?
-     .finish();
-    Ok(())
-  }
-}
-pub struct GetArgs<'a> {
-    pub key: Option<::flatbuffers::WIPOffset<&'a str>>,
-}
-impl<'a> Default for GetArgs<'a> {
-  #[inline]
-  fn default() -> Self {
-    GetArgs {
-      key: None,
-    }
-  }
-}
-
-pub struct GetBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
-  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
-}
-impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> GetBuilder<'a, 'b, A> {
-  #[inline]
-  pub fn add_key(&mut self, key: ::flatbuffers::WIPOffset<&'b  str>) {
-    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Get::VT_KEY, key);
-  }
-  #[inline]
-  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> GetBuilder<'a, 'b, A> {
-    let start = _fbb.start_table();
-    GetBuilder {
-      fbb_: _fbb,
-      start_: start,
-    }
-  }
-  #[inline]
-  pub fn finish(self) -> ::flatbuffers::WIPOffset<Get<'a>> {
-    let o = self.fbb_.end_table(self.start_);
-    ::flatbuffers::WIPOffset::new(o.value())
-  }
-}
-
-impl ::core::fmt::Debug for Get<'_> {
-  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-    let mut ds = f.debug_struct("Get");
-      ds.field("key", &self.key());
-      ds.finish()
-  }
-}
 pub enum SetOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -588,6 +492,102 @@ impl ::core::fmt::Debug for Delete<'_> {
       ds.finish()
   }
 }
+pub enum GetOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct Get<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for Get<'a> {
+  type Inner = Get<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> Get<'a> {
+  pub const VT_KEY: ::flatbuffers::VOffsetT = 4;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    Get { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args GetArgs<'args>
+  ) -> ::flatbuffers::WIPOffset<Get<'bldr>> {
+    let mut builder = GetBuilder::new(_fbb);
+    if let Some(x) = args.key { builder.add_key(x); }
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn key(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<&str>>(Get::VT_KEY, None)}
+  }
+}
+
+impl ::flatbuffers::Verifiable for Get<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_field::<::flatbuffers::ForwardsUOffset<&str>>("key", Self::VT_KEY, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct GetArgs<'a> {
+    pub key: Option<::flatbuffers::WIPOffset<&'a str>>,
+}
+impl<'a> Default for GetArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    GetArgs {
+      key: None,
+    }
+  }
+}
+
+pub struct GetBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> GetBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_key(&mut self, key: ::flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Get::VT_KEY, key);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> GetBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    GetBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<Get<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for Get<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("Get");
+      ds.field("key", &self.key());
+      ds.finish()
+  }
+}
 pub enum RequestOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
@@ -639,21 +639,6 @@ impl<'a> Request<'a> {
   }
   #[inline]
   #[allow(non_snake_case)]
-  pub fn command_as_get(&self) -> Option<Get<'a>> {
-    if self.command_type() == Command::Get {
-      self.command().map(|t| {
-       // Safety:
-       // Created from a valid Table for this object
-       // Which contains a valid union in this slot
-       unsafe { Get::init_from_table(t) }
-     })
-    } else {
-      None
-    }
-  }
-
-  #[inline]
-  #[allow(non_snake_case)]
   pub fn command_as_set(&self) -> Option<Set<'a>> {
     if self.command_type() == Command::Set {
       self.command().map(|t| {
@@ -682,6 +667,21 @@ impl<'a> Request<'a> {
     }
   }
 
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn command_as_get(&self) -> Option<Get<'a>> {
+    if self.command_type() == Command::Get {
+      self.command().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { Get::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
 }
 
 impl ::flatbuffers::Verifiable for Request<'_> {
@@ -692,9 +692,9 @@ impl ::flatbuffers::Verifiable for Request<'_> {
     v.visit_table(pos)?
      .visit_union::<Command, _>("command_type", Self::VT_COMMAND_TYPE, "command", Self::VT_COMMAND, false, |key, v, pos| {
         match key {
-          Command::Get => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Get>>("Command::Get", pos),
           Command::Set => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Set>>("Command::Set", pos),
           Command::Delete => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Delete>>("Command::Delete", pos),
+          Command::Get => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Get>>("Command::Get", pos),
           _ => Ok(()),
         }
      })?
@@ -749,13 +749,6 @@ impl ::core::fmt::Debug for Request<'_> {
     let mut ds = f.debug_struct("Request");
       ds.field("command_type", &self.command_type());
       match self.command_type() {
-        Command::Get => {
-          if let Some(x) = self.command_as_get() {
-            ds.field("command", &x)
-          } else {
-            ds.field("command", &"InvalidFlatbuffer: Union discriminant does not match value.")
-          }
-        },
         Command::Set => {
           if let Some(x) = self.command_as_set() {
             ds.field("command", &x)
@@ -765,6 +758,13 @@ impl ::core::fmt::Debug for Request<'_> {
         },
         Command::Delete => {
           if let Some(x) = self.command_as_delete() {
+            ds.field("command", &x)
+          } else {
+            ds.field("command", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        Command::Get => {
+          if let Some(x) = self.command_as_get() {
             ds.field("command", &x)
           } else {
             ds.field("command", &"InvalidFlatbuffer: Union discriminant does not match value.")
@@ -970,39 +970,39 @@ impl ::core::fmt::Debug for GetValue<'_> {
       ds.finish()
   }
 }
-pub enum UnitOffset {}
+pub enum SuccessOffset {}
 #[derive(Copy, Clone, PartialEq)]
 
-pub struct Unit<'a> {
+pub struct Success<'a> {
   pub _tab: ::flatbuffers::Table<'a>,
 }
 
-impl<'a> ::flatbuffers::Follow<'a> for Unit<'a> {
-  type Inner = Unit<'a>;
+impl<'a> ::flatbuffers::Follow<'a> for Success<'a> {
+  type Inner = Success<'a>;
   #[inline]
   unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
     Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
   }
 }
 
-impl<'a> Unit<'a> {
+impl<'a> Success<'a> {
 
   #[inline]
   pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
-    Unit { _tab: table }
+    Success { _tab: table }
   }
   #[allow(unused_mut)]
   pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
     _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
-    _args: &'args UnitArgs
-  ) -> ::flatbuffers::WIPOffset<Unit<'bldr>> {
-    let mut builder = UnitBuilder::new(_fbb);
+    _args: &'args SuccessArgs
+  ) -> ::flatbuffers::WIPOffset<Success<'bldr>> {
+    let mut builder = SuccessBuilder::new(_fbb);
     builder.finish()
   }
 
 }
 
-impl ::flatbuffers::Verifiable for Unit<'_> {
+impl ::flatbuffers::Verifiable for Success<'_> {
   #[inline]
   fn run_verifier(
     v: &mut ::flatbuffers::Verifier, pos: usize
@@ -1012,112 +1012,302 @@ impl ::flatbuffers::Verifiable for Unit<'_> {
     Ok(())
   }
 }
-pub struct UnitArgs {
+pub struct SuccessArgs {
 }
-impl<'a> Default for UnitArgs {
+impl<'a> Default for SuccessArgs {
   #[inline]
   fn default() -> Self {
-    UnitArgs {
+    SuccessArgs {
     }
   }
 }
 
-pub struct UnitBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+pub struct SuccessBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
   fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
   start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
 }
-impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> UnitBuilder<'a, 'b, A> {
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> SuccessBuilder<'a, 'b, A> {
   #[inline]
-  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> UnitBuilder<'a, 'b, A> {
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> SuccessBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
-    UnitBuilder {
+    SuccessBuilder {
       fbb_: _fbb,
       start_: start,
     }
   }
   #[inline]
-  pub fn finish(self) -> ::flatbuffers::WIPOffset<Unit<'a>> {
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<Success<'a>> {
     let o = self.fbb_.end_table(self.start_);
     ::flatbuffers::WIPOffset::new(o.value())
   }
 }
 
-impl ::core::fmt::Debug for Unit<'_> {
+impl ::core::fmt::Debug for Success<'_> {
   fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
-    let mut ds = f.debug_struct("Unit");
+    let mut ds = f.debug_struct("Success");
+      ds.finish()
+  }
+}
+pub enum ResponseOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct Response<'a> {
+  pub _tab: ::flatbuffers::Table<'a>,
+}
+
+impl<'a> ::flatbuffers::Follow<'a> for Response<'a> {
+  type Inner = Response<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { ::flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> Response<'a> {
+  pub const VT_REPLY_TYPE: ::flatbuffers::VOffsetT = 4;
+  pub const VT_REPLY: ::flatbuffers::VOffsetT = 6;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: ::flatbuffers::Table<'a>) -> Self {
+    Response { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: ::flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut ::flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args ResponseArgs
+  ) -> ::flatbuffers::WIPOffset<Response<'bldr>> {
+    let mut builder = ResponseBuilder::new(_fbb);
+    if let Some(x) = args.reply { builder.add_reply(x); }
+    builder.add_reply_type(args.reply_type);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn reply_type(&self) -> Reply {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<Reply>(Response::VT_REPLY_TYPE, Some(Reply::NONE)).unwrap()}
+  }
+  #[inline]
+  pub fn reply(&self) -> Option<::flatbuffers::Table<'a>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<::flatbuffers::ForwardsUOffset<::flatbuffers::Table<'a>>>(Response::VT_REPLY, None)}
+  }
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn reply_as_success(&self) -> Option<Success<'a>> {
+    if self.reply_type() == Reply::Success {
+      self.reply().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { Success::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn reply_as_failure(&self) -> Option<Failure<'a>> {
+    if self.reply_type() == Reply::Failure {
+      self.reply().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { Failure::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn reply_as_get_value(&self) -> Option<GetValue<'a>> {
+    if self.reply_type() == Reply::GetValue {
+      self.reply().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { GetValue::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+}
+
+impl ::flatbuffers::Verifiable for Response<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut ::flatbuffers::Verifier, pos: usize
+  ) -> Result<(), ::flatbuffers::InvalidFlatbuffer> {
+    v.visit_table(pos)?
+     .visit_union::<Reply, _>("reply_type", Self::VT_REPLY_TYPE, "reply", Self::VT_REPLY, false, |key, v, pos| {
+        match key {
+          Reply::Success => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Success>>("Reply::Success", pos),
+          Reply::Failure => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<Failure>>("Reply::Failure", pos),
+          Reply::GetValue => v.verify_union_variant::<::flatbuffers::ForwardsUOffset<GetValue>>("Reply::GetValue", pos),
+          _ => Ok(()),
+        }
+     })?
+     .finish();
+    Ok(())
+  }
+}
+pub struct ResponseArgs {
+    pub reply_type: Reply,
+    pub reply: Option<::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>>,
+}
+impl<'a> Default for ResponseArgs {
+  #[inline]
+  fn default() -> Self {
+    ResponseArgs {
+      reply_type: Reply::NONE,
+      reply: None,
+    }
+  }
+}
+
+pub struct ResponseBuilder<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: ::flatbuffers::WIPOffset<::flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: ::flatbuffers::Allocator + 'a> ResponseBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_reply_type(&mut self, reply_type: Reply) {
+    self.fbb_.push_slot::<Reply>(Response::VT_REPLY_TYPE, reply_type, Reply::NONE);
+  }
+  #[inline]
+  pub fn add_reply(&mut self, reply: ::flatbuffers::WIPOffset<::flatbuffers::UnionWIPOffset>) {
+    self.fbb_.push_slot_always::<::flatbuffers::WIPOffset<_>>(Response::VT_REPLY, reply);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>) -> ResponseBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    ResponseBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> ::flatbuffers::WIPOffset<Response<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    ::flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl ::core::fmt::Debug for Response<'_> {
+  fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+    let mut ds = f.debug_struct("Response");
+      ds.field("reply_type", &self.reply_type());
+      match self.reply_type() {
+        Reply::Success => {
+          if let Some(x) = self.reply_as_success() {
+            ds.field("reply", &x)
+          } else {
+            ds.field("reply", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        Reply::Failure => {
+          if let Some(x) = self.reply_as_failure() {
+            ds.field("reply", &x)
+          } else {
+            ds.field("reply", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        Reply::GetValue => {
+          if let Some(x) = self.reply_as_get_value() {
+            ds.field("reply", &x)
+          } else {
+            ds.field("reply", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        _ => {
+          let x: Option<()> = None;
+          ds.field("reply", &x)
+        },
+      };
       ds.finish()
   }
 }
 #[inline]
-/// Verifies that a buffer of bytes contains a `Request`
+/// Verifies that a buffer of bytes contains a `Response`
 /// and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
-/// `root_as_request_unchecked`.
-pub fn root_as_request(buf: &[u8]) -> Result<Request<'_>, ::flatbuffers::InvalidFlatbuffer> {
-  ::flatbuffers::root::<Request>(buf)
+/// `root_as_response_unchecked`.
+pub fn root_as_response(buf: &[u8]) -> Result<Response<'_>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::root::<Response>(buf)
 }
 #[inline]
 /// Verifies that a buffer of bytes contains a size prefixed
-/// `Request` and returns it.
+/// `Response` and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
-/// `size_prefixed_root_as_request_unchecked`.
-pub fn size_prefixed_root_as_request(buf: &[u8]) -> Result<Request<'_>, ::flatbuffers::InvalidFlatbuffer> {
-  ::flatbuffers::size_prefixed_root::<Request>(buf)
+/// `size_prefixed_root_as_response_unchecked`.
+pub fn size_prefixed_root_as_response(buf: &[u8]) -> Result<Response<'_>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::size_prefixed_root::<Response>(buf)
 }
 #[inline]
 /// Verifies, with the given options, that a buffer of bytes
-/// contains a `Request` and returns it.
+/// contains a `Response` and returns it.
 /// Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
-/// `root_as_request_unchecked`.
-pub fn root_as_request_with_opts<'b, 'o>(
+/// `root_as_response_unchecked`.
+pub fn root_as_response_with_opts<'b, 'o>(
   opts: &'o ::flatbuffers::VerifierOptions,
   buf: &'b [u8],
-) -> Result<Request<'b>, ::flatbuffers::InvalidFlatbuffer> {
-  ::flatbuffers::root_with_opts::<Request<'b>>(opts, buf)
+) -> Result<Response<'b>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::root_with_opts::<Response<'b>>(opts, buf)
 }
 #[inline]
 /// Verifies, with the given verifier options, that a buffer of
-/// bytes contains a size prefixed `Request` and returns
+/// bytes contains a size prefixed `Response` and returns
 /// it. Note that verification is still experimental and may not
 /// catch every error, or be maximally performant. For the
 /// previous, unchecked, behavior use
-/// `root_as_request_unchecked`.
-pub fn size_prefixed_root_as_request_with_opts<'b, 'o>(
+/// `root_as_response_unchecked`.
+pub fn size_prefixed_root_as_response_with_opts<'b, 'o>(
   opts: &'o ::flatbuffers::VerifierOptions,
   buf: &'b [u8],
-) -> Result<Request<'b>, ::flatbuffers::InvalidFlatbuffer> {
-  ::flatbuffers::size_prefixed_root_with_opts::<Request<'b>>(opts, buf)
+) -> Result<Response<'b>, ::flatbuffers::InvalidFlatbuffer> {
+  ::flatbuffers::size_prefixed_root_with_opts::<Response<'b>>(opts, buf)
 }
 #[inline]
-/// Assumes, without verification, that a buffer of bytes contains a Request and returns it.
+/// Assumes, without verification, that a buffer of bytes contains a Response and returns it.
 /// # Safety
-/// Callers must trust the given bytes do indeed contain a valid `Request`.
-pub unsafe fn root_as_request_unchecked(buf: &[u8]) -> Request<'_> {
-  unsafe { ::flatbuffers::root_unchecked::<Request>(buf) }
+/// Callers must trust the given bytes do indeed contain a valid `Response`.
+pub unsafe fn root_as_response_unchecked(buf: &[u8]) -> Response<'_> {
+  unsafe { ::flatbuffers::root_unchecked::<Response>(buf) }
 }
 #[inline]
-/// Assumes, without verification, that a buffer of bytes contains a size prefixed Request and returns it.
+/// Assumes, without verification, that a buffer of bytes contains a size prefixed Response and returns it.
 /// # Safety
-/// Callers must trust the given bytes do indeed contain a valid size prefixed `Request`.
-pub unsafe fn size_prefixed_root_as_request_unchecked(buf: &[u8]) -> Request<'_> {
-  unsafe { ::flatbuffers::size_prefixed_root_unchecked::<Request>(buf) }
+/// Callers must trust the given bytes do indeed contain a valid size prefixed `Response`.
+pub unsafe fn size_prefixed_root_as_response_unchecked(buf: &[u8]) -> Response<'_> {
+  unsafe { ::flatbuffers::size_prefixed_root_unchecked::<Response>(buf) }
 }
 #[inline]
-pub fn finish_request_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(
+pub fn finish_response_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(
     fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>,
-    root: ::flatbuffers::WIPOffset<Request<'a>>) {
+    root: ::flatbuffers::WIPOffset<Response<'a>>) {
   fbb.finish(root, None);
 }
 
 #[inline]
-pub fn finish_size_prefixed_request_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>, root: ::flatbuffers::WIPOffset<Request<'a>>) {
+pub fn finish_size_prefixed_response_buffer<'a, 'b, A: ::flatbuffers::Allocator + 'a>(fbb: &'b mut ::flatbuffers::FlatBufferBuilder<'a, A>, root: ::flatbuffers::WIPOffset<Response<'a>>) {
   fbb.finish_size_prefixed(root, None);
 }
-}  // pub mod messages
+}  // pub mod Messages
 

@@ -2,4 +2,4 @@
 #[rustfmt::skip]
 mod messages_generated;
 
-pub use messages_generated::messages::*;
+pub use messages_generated::messages;

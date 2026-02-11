@@ -1,0 +1,52 @@
+namespace Messages;
+
+// --- Request Components ---
+
+table Set {
+  key: string;
+  value: string;
+}
+
+table Delete {
+  key: string;
+}
+
+table Get {
+  key: string;
+}
+
+// Added GetOp to the union
+union Command { Set, Delete, Get }
+
+table Request {
+  command: Command;
+}
+
+// --- Response Components ---
+
+enum ErrorCode : byte {
+  Unknown = 0,
+  NotFound,
+  StorageFull
+}
+
+table Failure {
+  code: ErrorCode;
+}
+
+// Returned specifically for a successful Get
+table GetValue {
+  value: string;
+}
+
+// An empty table representing "Unit" for Set/Delete success
+table Success {}
+
+union Reply { Success, Failure, GetValue }
+
+table Response {
+   reply: Reply;
+}
+
+root_type Request;
+root_type Response;
