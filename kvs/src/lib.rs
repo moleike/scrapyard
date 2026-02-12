@@ -9,3 +9,5 @@ mod error;
 pub use error::{Error, Result};
 
 mod engine;
+
+pub use engine::{KvsEngine, kvs::KvStore};

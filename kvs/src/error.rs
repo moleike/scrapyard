@@ -1,5 +1,5 @@
-use std::{io, result};
 use flatbuffers::InvalidFlatbuffer;
+use std::{io, result};
 use thiserror::Error;
 
 /// errors

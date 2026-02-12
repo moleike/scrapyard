@@ -1,26 +1,24 @@
-use std::net::SocketAddr;
-use std::net::TcpListener;
+use std::io::stderr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::exit;
-use std::str::FromStr;
 
-use kvs::server::Server;
 use kvs::Result;
-use kvs::server;
-use tracing::debug;
+use kvs::server::Server;
 use tracing::info;
 
 use clap::{Parser, ValueEnum};
-use tracing::trace;
 use tracing::Level;
+
+const DEFAULT_ADDR: SocketAddr = SocketAddr::new(IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)), 4000);
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
 struct Cli {
-    #[arg(long, value_parser = clap::value_parser!(SocketAddr))]
-    addr: Option<SocketAddr>,
+    #[arg(long, value_parser = clap::value_parser!(SocketAddr), default_value_t=DEFAULT_ADDR)]
+    addr: SocketAddr,
 
-    #[arg(long, value_enum)]
-    engine: Option<Engine>,
+    #[arg(long, value_enum, default_value_t=Engine::Kvs)]
+    engine: Engine,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -37,20 +35,23 @@ fn main() {
 }
 
 fn run() -> Result<()> {
+    let version = env!("CARGO_PKG_VERSION");
+
     let subscriber = tracing_subscriber::fmt()
         .compact()
         .with_max_level(Level::TRACE)
+        .with_writer(stderr)
         .finish();
 
     tracing::subscriber::set_global_default(subscriber).unwrap();
 
     let cli = Cli::parse();
 
-    let addr = cli.addr.unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
+    info!("{}", version);
+    info!("{:?}", cli.addr);
+    info!("{:?}", cli.engine);
 
-    info!("{:?} {:?}", addr, cli.engine);
-
-    let mut server = Server::new(addr, None)?;
+    let mut server = Server::new(cli.addr, None)?;
 
     server.run()?;
 

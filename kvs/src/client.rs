@@ -3,9 +3,11 @@ use std::{
     net::{TcpStream, ToSocketAddrs},
 };
 
-use crate::{messages::messages::{
-    size_prefixed_root_as_response, Command, ErrorCode, Get, GetArgs, Reply, Request, RequestArgs, Response, Set, SetArgs,
-}, Error::ServerError};
+use crate::{
+    messages::messages::{
+        Command, Delete, DeleteArgs, ErrorCode, Get, GetArgs, Reply, Request, RequestArgs, Response, Set, SetArgs
+    }, Error::{KeyNotFound, ServerError}
+};
 
 pub struct Client {
     stream: TcpStream,
@@ -48,7 +50,6 @@ impl Client {
 
         let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
 
-        // --- 4. VERIFY & EXTRACT DATA ---
         match response.reply_type() {
             Reply::GetValue => {
                 let get_val_table = response.reply_as_get_value().ok_or(ServerError)?;
@@ -59,7 +60,7 @@ impl Client {
             Reply::Failure => {
                 let fail = response.reply_as_failure().ok_or(ServerError)?;
                 match fail.code() {
-                    ErrorCode::NotFound => Err(crate::Error::KeyNotFound),
+                    ErrorCode::NotFound => Err(KeyNotFound),
                     _ => Err(ServerError),
                 }
             }
@@ -73,7 +74,13 @@ impl Client {
         let key_off = builder.create_string(key);
         let val_off = builder.create_string(value);
 
-        let set_op = Set::create(&mut builder, &SetArgs { key: Some(key_off), value: Some(val_off) });
+        let set_op = Set::create(
+            &mut builder,
+            &SetArgs {
+                key: Some(key_off),
+                value: Some(val_off),
+            },
+        );
 
         let req = Request::create(
             &mut builder,
@@ -96,12 +103,55 @@ impl Client {
 
         let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
 
-        // --- 4. VERIFY & EXTRACT DATA ---
         match response.reply_type() {
             Reply::Success => Ok(()),
             _ => Err(ServerError),
         }
-
     }
 
+    pub fn delete(&mut self, key: &str) -> crate::Result<()> {
+        let mut builder = flatbuffers::FlatBufferBuilder::new();
+
+        let key_off = builder.create_string(key);
+
+        let delete_op = Delete::create(
+            &mut builder,
+            &DeleteArgs {
+                key: Some(key_off),
+            },
+        );
+
+        let req = Request::create(
+            &mut builder,
+            &RequestArgs {
+                command_type: Command::Delete,
+                command: Some(delete_op.as_union_value()),
+            },
+        );
+
+        builder.finish_size_prefixed(req, None);
+        self.stream.write_all(builder.finished_data())?;
+
+        let mut size_buf = [0u8; 4];
+        self.stream.read_exact(&mut size_buf)?;
+        let size = u32::from_le_bytes(size_buf) as usize;
+
+        let mut msg_buf = vec![0u8; size + 4];
+        msg_buf[..4].copy_from_slice(&size_buf); // Verifier needs the prefix too
+        self.stream.read_exact(&mut msg_buf[4..])?;
+
+        let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
+
+        match response.reply_type() {
+            Reply::Success => Ok(()),
+            Reply::Failure => {
+                let fail = response.reply_as_failure().ok_or(ServerError)?;
+                match fail.code() {
+                    ErrorCode::NotFound => Err(KeyNotFound),
+                    _ => Err(ServerError),
+                }
+            }
+            _ => Err(ServerError),
+        }
+    }
 }

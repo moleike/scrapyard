@@ -1,5 +1,3 @@
-use flatc_rust;
-
 use std::path::Path;
 
 fn main() {
@@ -8,5 +6,6 @@ fn main() {
         inputs: &[Path::new("./api/flat/messages.fbs")],
         out_dir: Path::new("./src/messages/"),
         ..Default::default()
-    }).expect("flatc");
+    })
+    .expect("flatc");
 }

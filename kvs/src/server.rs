@@ -3,19 +3,13 @@ use std::{
     io::{Read, Write},
     net::{TcpListener, TcpStream, ToSocketAddrs},
 };
-use tracing::{debug, error, info, trace};
+use tracing::{error, info, trace};
 
-use crate::{
-    engine::{kvs::KvStore, KvsEngine},
-    error::Result,
-};
+use crate::engine::{kvs::KvStore, KvsEngine};
 use crate::{
     messages::{
         self,
-        messages::{
-            Command, ErrorCode, Failure, FailureArgs, GetValue, GetValueArgs, Reply, Request,
-            Response, ResponseArgs,
-        },
+        messages::{Command, ErrorCode, Request},
     },
     Error,
 };
@@ -87,7 +81,6 @@ impl Server {
         match request.command_type() {
             Command::Get => {
                 if let Some(op) = request.command_as_get() {
-
                     let key = op.key().unwrap();
 
                     trace!("Get: {}", key);
@@ -120,9 +113,18 @@ impl Server {
             }
             Command::Delete => {
                 if let Some(op) = request.command_as_delete() {
-                    trace!("Delete: {}", op.key().unwrap_or(""));
+                    let key = op.key().unwrap();
 
-                    Ok(None)
+                    trace!("Delete: {}", key);
+
+                    let response_data = match self.engine.remove(key.to_string()) {
+                        Ok(()) => messages::serialize_response_success(),
+                        Err(Error::KeyNotFound) => {
+                            messages::serialize_response_failure(ErrorCode::NotFound)
+                        }
+                        Err(_) => messages::serialize_response_failure(ErrorCode::Unknown),
+                    };
+                    Ok(Some(response_data))
                 } else {
                     Ok(None)
                 }

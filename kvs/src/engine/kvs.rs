@@ -5,20 +5,19 @@
 //! a simple in-memory key/value store that maps strings to strings
 
 use regex::Regex;
-use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use serde_jsonlines::{
-    append_json_lines, JsonLinesFileIter, JsonLinesIter, JsonLinesReader, WriteExt,
+    JsonLinesFileIter, JsonLinesIter, JsonLinesReader, WriteExt, append_json_lines,
 };
-use std::fs::{self, exists, remove_file, File, OpenOptions};
-use std::io::{self, prelude::*, BufReader, BufWriter};
+use std::fs::{self, File, OpenOptions, exists, remove_file};
+use std::io::{self, BufReader, BufWriter, prelude::*};
 use std::os::unix::fs::MetadataExt;
 use std::path::Path;
-use std::{collections::HashMap, path::PathBuf, result};
+use std::{collections::HashMap, path::PathBuf};
 use walkdir::{DirEntry, WalkDir};
 
-use crate::engine::KvsEngine;
 use crate::Error;
+use crate::engine::KvsEngine;
 
 /// the key/value store is an abstract data type
 ///
@@ -122,7 +121,7 @@ impl KvStore {
         Ok(KvStore {
             keydir,
             active_file_id,
-            datastore_path: path.into(),
+            datastore_path: path,
         })
     }
 
@@ -158,23 +157,23 @@ impl KvStore {
                             file_id,
                             file_offset,
                         }) = self.keydir.get(&key)
+                            && *file_id == id
+                            && *file_offset == offset
                         {
-                            if *file_id == id && *file_offset == offset {
-                                let offset = writer.stream_position()?;
+                            let offset = writer.stream_position()?;
 
-                                writer.write_json_lines(&[Command::Set(key.clone(), value)])?;
+                            writer.write_json_lines(&[Command::Set(key.clone(), value)])?;
 
-                                self.keydir
-                                    .insert(
-                                        key,
-                                        ValueInfo {
-                                            file_offset: offset,
-                                            file_id: merged_file_id,
-                                        },
-                                    )
-                                    .ok_or(Error::Storage)
-                                    .map(|_| ())?
-                            }
+                            self.keydir
+                                .insert(
+                                    key,
+                                    ValueInfo {
+                                        file_offset: offset,
+                                        file_id: merged_file_id,
+                                    },
+                                )
+                                .ok_or(Error::Storage)
+                                .map(|_| ())?
                         }
                     }
                     Command::Del(_) => (),
@@ -203,7 +202,7 @@ impl KvStore {
                         k,
                         ValueInfo {
                             file_offset: offset,
-                            file_id: file_id,
+                            file_id,
                         },
                     ),
                     Command::Del(k) => keydir.remove(&k),
@@ -295,7 +294,7 @@ impl KvStore {
             .sort_by_file_name()
             .into_iter()
             .filter_map(|e| e.ok())
-            .filter(|e| Self::is_wal_file(e))
+            .filter(Self::is_wal_file)
             .map(|e| e.path().to_owned())
             .collect()
     }

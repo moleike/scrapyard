@@ -1,14 +1,18 @@
-use std::{env::current_dir, net::SocketAddr, process::{self, exit}, str::FromStr};
+use std::{net::SocketAddr, process::exit, str::FromStr};
 
 use clap::{Parser, Subcommand};
-use kvs::{client::{self, Client}, messages::*, Result};
+use kvs::{client::Client, Error, Result};
 
 #[derive(Parser)]
-#[command(version, author)] // Read from `Cargo.toml`
+#[command(version, about, long_about = None)] // Read from `Cargo.toml`
 pub struct Cli {
     #[command(subcommand)]
     command: Command,
-    #[arg(long, value_parser = clap::value_parser!(SocketAddr))]
+    #[arg(long,
+          value_parser = clap::value_parser!(SocketAddr),
+          global = true,
+          display_order = 2000
+    )]
     addr: Option<SocketAddr>,
 }
 
@@ -25,7 +29,7 @@ pub enum Command {
     Del {
         key: String,
     },
-    Compact
+    Compact,
 }
 
 fn main() {
@@ -37,20 +41,28 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    let addr = cli.addr.unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
+    let addr = cli
+        .addr
+        .unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
 
     let mut client = Client::connect(addr)?;
 
     match &cli.command {
-        Command::Get { key } => {
-            let value = client.get(key)?;
-
-            println!("{}", value)
+        Command::Get { key } => match client.get(key) {
+            Ok(value) => Ok(println!("{}", value)),
+            Err(Error::KeyNotFound) => Ok(println!("Key not found")),
+            Err(e) => Err(e),
         },
-        Command::Set { key, value } => {
-            client.set(key, value)?;
-        }
-        _ => println!("not implemented")
+        Command::Set { key, value } => Ok(client.set(key, value)?),
+        Command::Del { key } => match client.delete(key) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                if let Error::KeyNotFound = e {
+                    eprintln!("Key not found");
+                }
+                Err(e)
+            }
+        },
+        _ => Ok(println!("not implemented")),
     }
-    Ok(())
 }
