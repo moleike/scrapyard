@@ -37,7 +37,6 @@ fn main() {
 
 fn run() -> Result<()> {
     let cli = Cli::parse();
-    let path = current_dir()?;
     let addr = cli.addr.unwrap_or(SocketAddr::from_str("127.0.0.1:4000").unwrap());
 
     let mut client = Client::connect(addr)?;
@@ -48,6 +47,9 @@ fn run() -> Result<()> {
 
             println!("{}", value)
         },
+        Command::Set { key, value } => {
+            client.set(key, value)?;
+        }
         _ => println!("not implemented")
     }
     Ok(())

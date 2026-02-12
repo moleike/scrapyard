@@ -5,13 +5,19 @@ use std::{
 };
 use tracing::{debug, error, info, trace};
 
-use crate::messages::messages::{
-    Command, ErrorCode, Failure, FailureArgs, GetValue, GetValueArgs, Reply, Request, Response,
-    ResponseArgs,
-};
 use crate::{
     engine::{kvs::KvStore, KvsEngine},
     error::Result,
+};
+use crate::{
+    messages::{
+        self,
+        messages::{
+            Command, ErrorCode, Failure, FailureArgs, GetValue, GetValueArgs, Reply, Request,
+            Response, ResponseArgs,
+        },
+    },
+    Error,
 };
 
 pub struct Server {
@@ -63,29 +69,51 @@ impl Server {
                 info!("Valid Request Received: {:?}", req.command_type());
 
                 if let Some(response_data) = self.handle_command(req)? {
-                    Ok(stream.write_all(&response_data)?)
-                } else {
-                    Ok(())
+                    stream.write_all(&response_data)?;
                 }
 
+                Ok(())
             }
             Err(e) => {
                 // This is where you catch "Invalid Flatbuffer" errors!
                 error!("Invalid Flatbuffer error: {:?}", e);
-                panic!()
+
+                Err(Error::ProtocolError(e))
             }
         }
     }
 
     fn handle_command(&mut self, request: Request) -> crate::Result<Option<Vec<u8>>> {
         match request.command_type() {
+            Command::Get => {
+                if let Some(op) = request.command_as_get() {
+
+                    let key = op.key().unwrap();
+
+                    trace!("Get: {}", key);
+
+                    let response_data = match self.engine.get(key.to_string()) {
+                        Ok(Some(value)) => messages::serialize_response_value(&value),
+                        _ => messages::serialize_response_failure(ErrorCode::NotFound),
+                    };
+
+                    Ok(Some(response_data))
+                } else {
+                    Ok(None)
+                }
+            }
             Command::Set => {
                 if let Some(op) = request.command_as_set() {
-                    let key = op.key().unwrap_or("");
-                    let val = op.value().unwrap_or("");
+                    let key = op.key().unwrap();
+                    let val = op.value().unwrap();
+
                     trace!("Set: {} = {}", key, val);
 
-                    Ok(None)
+                    let response_data = match self.engine.set(key.to_string(), val.to_string()) {
+                        Ok(()) => messages::serialize_response_success(),
+                        Err(_) => messages::serialize_response_failure(ErrorCode::Unknown),
+                    };
+                    Ok(Some(response_data))
                 } else {
                     Ok(None)
                 }
@@ -99,62 +127,14 @@ impl Server {
                     Ok(None)
                 }
             }
-            Command::Get => {
-                if let Some(op) = request.command_as_get() {
-                    trace!("Get: {}", op.key().unwrap_or(""));
-
-                    let key = op.key().unwrap();
-
-                    let response_data = match self.engine.get(key.to_string()) {
-                        Ok(Some(value)) => Self::serialize_response_value(&value),
-                        _ => {
-                            Self::serialize_response_failure(ErrorCode::NotFound)
-                        }
-                    };
-
-                    Ok(Some(response_data))
-                } else {
-                    Ok(None)
-                }
-            }
             Command::NONE => {
                 error!("No command provided");
                 Ok(None)
-            },
+            }
             _ => {
                 error!("Unknown command variant");
                 Ok(None)
             }
-
         }
-    }
-
-    fn serialize_response_value(val: &str) -> Vec<u8> {
-        let mut b = flatbuffers::FlatBufferBuilder::new();
-        let v = b.create_string(val);
-        let gv = GetValue::create(&mut b, &GetValueArgs { value: Some(v) });
-        let res = Response::create(
-            &mut b,
-            &ResponseArgs {
-                reply_type: Reply::GetValue,
-                reply: Some(gv.as_union_value()),
-            },
-        );
-        b.finish_size_prefixed(res, None);
-        b.finished_data().to_vec()
-    }
-
-    fn serialize_response_failure(code: ErrorCode) -> Vec<u8> {
-        let mut b = flatbuffers::FlatBufferBuilder::new();
-        let f = Failure::create(&mut b, &FailureArgs { code });
-        let res = Response::create(
-            &mut b,
-            &ResponseArgs {
-                reply_type: Reply::Failure,
-                reply: Some(f.as_union_value()),
-            },
-        );
-        b.finish_size_prefixed(res, None);
-        b.finished_data().to_vec()
     }
 }

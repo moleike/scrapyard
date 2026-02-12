@@ -15,7 +15,6 @@ table Get {
   key: string;
 }
 
-// Added GetOp to the union
 union Command { Set, Delete, Get }
 
 table Request {
