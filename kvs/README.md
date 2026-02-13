@@ -1,1 +1,0 @@
-A wip log-structured key-value database based on the [Bitcask](https://github.com/basho/bitcask) storage engine. Following the course from [PingCAP Talent Plan](https://github.com/pingcap/talent-plan/tree/master/courses/rust/projects)
