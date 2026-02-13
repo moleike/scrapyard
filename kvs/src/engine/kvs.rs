@@ -125,8 +125,15 @@ impl KvStore {
         })
     }
 
+    pub fn active_wal_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
+        Self::get_wal_files_ordered(path)
+            .into_iter()
+            .reduce(|acc, e| acc.max(e)) // I know
+    }
+
+
     /// apply log compaction
-    pub fn merge(&mut self) -> crate::Result<()> {
+    fn merge(&mut self) -> crate::Result<()> {
         let Some(merged_file) = self.get_next_merged_file() else {
             return Ok(());
         };
@@ -173,7 +180,7 @@ impl KvStore {
                                     },
                                 )
                                 .ok_or(Error::Storage)
-                                .map(|_| ())?
+                                .map(drop)?
                         }
                     }
                     Command::Del(_) => (),
@@ -301,12 +308,6 @@ impl KvStore {
 
     fn get_total_num_wal_files(&mut self) -> usize {
         Self::get_wal_files_ordered(&self.datastore_path).len()
-    }
-
-    fn active_wal_file<P: AsRef<Path>>(path: P) -> Option<PathBuf> {
-        Self::get_wal_files_ordered(path)
-            .into_iter()
-            .reduce(|acc, e| acc.max(e)) // I know
     }
 
     fn touch<P: AsRef<Path>>(path: P) -> crate::Result<()> {

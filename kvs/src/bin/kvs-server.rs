@@ -1,10 +1,11 @@
+use std::env::current_dir;
 use std::io::stderr;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::process::exit;
 
-use kvs::Result;
 use kvs::server::Server;
-use tracing::info;
+use kvs::{Error, KvStore, KvsEngine, Result, Sled};
+use tracing::{error, info};
 
 use clap::{Parser, ValueEnum};
 use tracing::Level;
@@ -51,7 +52,28 @@ fn run() -> Result<()> {
     info!("{:?}", cli.addr);
     info!("{:?}", cli.engine);
 
-    let mut server = Server::new(cli.addr, None)?;
+    let path = current_dir()?;
+
+    let engine: Box<dyn KvsEngine> = match cli.engine {
+        Engine::Sled => {
+            if KvStore::active_wal_file(&path).is_some() {
+                error!("wrong engine selected!");
+                return Err(Error::Storage);
+            } else {
+                Box::new(Sled::open(&path)?)
+            }
+        }
+        Engine::Kvs => {
+            if Sled::is_restart(&path) {
+                error!("wrong engine selected!");
+                return Err(Error::Storage);
+            } else {
+                Box::new(KvStore::open(&path)?)
+            }
+        }
+    };
+
+    let mut server = Server::new(cli.addr, engine)?;
 
     server.run()?;
 

@@ -1,5 +1,5 @@
 use flatbuffers::InvalidFlatbuffer;
-use std::{io, result};
+use std::{io, result, string::FromUtf8Error};
 use thiserror::Error;
 
 /// errors
@@ -17,6 +17,10 @@ pub enum Error {
     ServerError,
     #[error("Protocol error")]
     ProtocolError(#[from] InvalidFlatbuffer),
+    #[error("Sled backend error")]
+    SledError(#[from] sled::Error),
+    #[error("Marshalling error")]
+    SerdeError(#[from] FromUtf8Error),
     #[error("Unknown error")]
     Unknown,
 }

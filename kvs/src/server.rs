@@ -5,7 +5,7 @@ use std::{
 };
 use tracing::{error, info, trace};
 
-use crate::engine::{kvs::KvStore, KvsEngine};
+use crate::engine::KvsEngine;
 use crate::{
     messages::{
         self,
@@ -22,11 +22,9 @@ pub struct Server {
 impl Server {
     pub fn new<T: ToSocketAddrs>(
         addr: T,
-        engine: Option<Box<dyn KvsEngine>>,
+        engine: Box<dyn KvsEngine>,
     ) -> crate::Result<Self> {
         let listener = TcpListener::bind(addr)?;
-
-        let engine = engine.unwrap_or(Box::new(KvStore::open(current_dir()?)?));
 
         Ok(Self { engine, listener })
     }

@@ -10,4 +10,4 @@ pub use error::{Error, Result};
 
 mod engine;
 
-pub use engine::{KvsEngine, kvs::KvStore};
+pub use engine::{KvsEngine, kvs::KvStore, sled::Sled};

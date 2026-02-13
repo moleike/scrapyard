@@ -291,6 +291,9 @@ fn cli_access_server(engine: &str, addr: &str) {
         .success()
         .stdout(is_empty());
 
+    // added to ensure sled has flushed data to disk
+    // flushing on drop does not work because the server recvs SIGKILL
+    thread::sleep(Duration::from_secs(1));
     sender.send(()).unwrap();
     handle.join().unwrap();
 
