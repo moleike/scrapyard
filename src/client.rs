@@ -4,9 +4,9 @@ use std::{
 };
 
 use crate::{
-    messages::messages::{
-        Command, Delete, DeleteArgs, ErrorCode, Get, GetArgs, Reply, Request, RequestArgs, Response, Set, SetArgs
-    }, Error::{KeyNotFound, ServerError}
+    messages::{self, messages::{
+        ErrorCode, Reply, Response
+    }}, Error::{KeyNotFound, ServerError}
 };
 
 pub struct Client {
@@ -21,34 +21,13 @@ impl Client {
     }
 
     pub fn get(&mut self, key: &str) -> crate::Result<String> {
-        let mut builder = flatbuffers::FlatBufferBuilder::new();
-        let key_off = builder.create_string(key);
+        let bytes = messages::serialize_request_get(key);
 
-        let get_op = Get::create(&mut builder, &GetArgs { key: Some(key_off) });
+        self.stream.write_all(&bytes)?;
 
-        let req = Request::create(
-            &mut builder,
-            &RequestArgs {
-                command_type: Command::Get,
-                command: Some(get_op.as_union_value()),
-            },
-        );
+        let buf = Self::get_raw_response(&mut self.stream)?;
 
-        builder.finish_size_prefixed(req, None);
-        self.stream.write_all(builder.finished_data())?;
-
-        let mut size_buf = [0u8; 4];
-        self.stream.read_exact(&mut size_buf)?;
-        let size = u32::from_le_bytes(size_buf) as usize;
-
-        // Safety check: Prevent massive allocations from corrupt data
-        // if size > 10 * 1024 * 1024 { return Err("Response too large".into()); }
-
-        let mut msg_buf = vec![0u8; size + 4];
-        msg_buf[..4].copy_from_slice(&size_buf); // Verifier needs the prefix too
-        self.stream.read_exact(&mut msg_buf[4..])?;
-
-        let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
+        let response = Self::get_response(&buf)?;
 
         match response.reply_type() {
             Reply::GetValue => {
@@ -69,39 +48,13 @@ impl Client {
     }
 
     pub fn set(&mut self, key: &str, value: &str) -> crate::Result<()> {
-        let mut builder = flatbuffers::FlatBufferBuilder::new();
+        let bytes = messages::serialize_request_set(key, value);
 
-        let key_off = builder.create_string(key);
-        let val_off = builder.create_string(value);
+        self.stream.write_all(&bytes)?;
 
-        let set_op = Set::create(
-            &mut builder,
-            &SetArgs {
-                key: Some(key_off),
-                value: Some(val_off),
-            },
-        );
+        let buf = Self::get_raw_response(&mut self.stream)?;
 
-        let req = Request::create(
-            &mut builder,
-            &RequestArgs {
-                command_type: Command::Set,
-                command: Some(set_op.as_union_value()),
-            },
-        );
-
-        builder.finish_size_prefixed(req, None);
-        self.stream.write_all(builder.finished_data())?;
-
-        let mut size_buf = [0u8; 4];
-        self.stream.read_exact(&mut size_buf)?;
-        let size = u32::from_le_bytes(size_buf) as usize;
-
-        let mut msg_buf = vec![0u8; size + 4];
-        msg_buf[..4].copy_from_slice(&size_buf); // Verifier needs the prefix too
-        self.stream.read_exact(&mut msg_buf[4..])?;
-
-        let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
+        let response = Self::get_response(&buf)?;
 
         match response.reply_type() {
             Reply::Success => Ok(()),
@@ -110,37 +63,13 @@ impl Client {
     }
 
     pub fn delete(&mut self, key: &str) -> crate::Result<()> {
-        let mut builder = flatbuffers::FlatBufferBuilder::new();
+        let bytes = messages::serialize_request_delete(key);
 
-        let key_off = builder.create_string(key);
+        self.stream.write_all(&bytes)?;
 
-        let delete_op = Delete::create(
-            &mut builder,
-            &DeleteArgs {
-                key: Some(key_off),
-            },
-        );
+        let buf = Self::get_raw_response(&mut self.stream)?;
 
-        let req = Request::create(
-            &mut builder,
-            &RequestArgs {
-                command_type: Command::Delete,
-                command: Some(delete_op.as_union_value()),
-            },
-        );
-
-        builder.finish_size_prefixed(req, None);
-        self.stream.write_all(builder.finished_data())?;
-
-        let mut size_buf = [0u8; 4];
-        self.stream.read_exact(&mut size_buf)?;
-        let size = u32::from_le_bytes(size_buf) as usize;
-
-        let mut msg_buf = vec![0u8; size + 4];
-        msg_buf[..4].copy_from_slice(&size_buf); // Verifier needs the prefix too
-        self.stream.read_exact(&mut msg_buf[4..])?;
-
-        let response = flatbuffers::size_prefixed_root::<Response>(&msg_buf)?;
+        let response = Self::get_response(&buf)?;
 
         match response.reply_type() {
             Reply::Success => Ok(()),
@@ -154,4 +83,25 @@ impl Client {
             _ => Err(ServerError),
         }
     }
+
+    fn get_raw_response<R: Read>(input: &mut R) -> crate::Result<Vec<u8>> {
+        let mut size_buf = [0u8; 4];
+        input.read_exact(&mut size_buf)?;
+
+        let size = u32::from_le_bytes(size_buf) as usize;
+
+        let mut msg_buf = vec![0u8; size];
+        input.read_exact(&mut msg_buf)?;
+
+        let mut full_buffer = Vec::with_capacity(size + 4);
+        full_buffer.extend_from_slice(&size_buf);
+        full_buffer.extend_from_slice(&msg_buf);
+
+        Ok(full_buffer)
+    }
+
+    fn get_response<'a>(bytes: &'a Vec<u8>) -> crate::Result<Response<'a>> {
+        Ok(flatbuffers::size_prefixed_root::<Response>(&bytes)?)
+    }
+
 }

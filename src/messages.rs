@@ -6,6 +6,74 @@ pub use messages_generated::messages;
 
 use self::messages::*;
 
+pub fn serialize_request_get(key: &str) -> Vec<u8> {
+    let mut builder = flatbuffers::FlatBufferBuilder::new();
+    let key_off = builder.create_string(key);
+
+    let get_op = Get::create(&mut builder, &GetArgs { key: Some(key_off) });
+
+    let req = Request::create(
+        &mut builder,
+        &RequestArgs {
+            command_type: Command::Get,
+            command: Some(get_op.as_union_value()),
+        },
+    );
+
+    builder.finish_size_prefixed(req, None);
+    builder.finished_data().to_vec()
+}
+
+pub fn serialize_request_set(key: &str, val: &str) -> Vec<u8> {
+    let mut builder = flatbuffers::FlatBufferBuilder::new();
+
+    let key_off = builder.create_string(key);
+    let val_off = builder.create_string(val);
+
+    let set_op = Set::create(
+        &mut builder,
+        &SetArgs {
+            key: Some(key_off),
+            value: Some(val_off),
+        },
+    );
+
+    let req = Request::create(
+        &mut builder,
+        &RequestArgs {
+            command_type: Command::Set,
+            command: Some(set_op.as_union_value()),
+        },
+    );
+
+    builder.finish_size_prefixed(req, None);
+    builder.finished_data().to_vec()
+}
+
+pub fn serialize_request_delete(key: &str) -> Vec<u8> {
+    let mut builder = flatbuffers::FlatBufferBuilder::new();
+
+    let key_off = builder.create_string(key);
+
+    let delete_op = Delete::create(
+        &mut builder,
+        &DeleteArgs {
+            key: Some(key_off),
+        },
+    );
+
+    let req = Request::create(
+        &mut builder,
+        &RequestArgs {
+            command_type: Command::Delete,
+            command: Some(delete_op.as_union_value()),
+        },
+    );
+
+    builder.finish_size_prefixed(req, None);
+    builder.finished_data().to_vec()
+}
+
 pub fn serialize_response_value(val: &str) -> Vec<u8> {
     let mut b = flatbuffers::FlatBufferBuilder::new();
     let v = b.create_string(val);

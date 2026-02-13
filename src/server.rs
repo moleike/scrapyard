@@ -20,10 +20,7 @@ pub struct Server {
 }
 
 impl Server {
-    pub fn new<T: ToSocketAddrs>(
-        addr: T,
-        engine: Box<dyn KvsEngine>,
-    ) -> crate::Result<Self> {
+    pub fn new<T: ToSocketAddrs>(addr: T, engine: Box<dyn KvsEngine>) -> crate::Result<Self> {
         let listener = TcpListener::bind(addr)?;
 
         Ok(Self { engine, listener })
@@ -35,7 +32,7 @@ impl Server {
         for stream in listener.incoming() {
             let stream = stream?;
 
-            info!("Connection established!");
+            trace!("Connection established!");
 
             self.handle_client(stream)?
         }
@@ -44,36 +41,37 @@ impl Server {
     }
 
     fn handle_client(&mut self, mut stream: TcpStream) -> crate::Result<()> {
+        let buf = Self::get_raw_request(&mut stream)?;
+
+        let req = Self::get_request(&buf)?;
+
+        if let Some(response_data) = self.handle_command(req)? {
+            stream.write_all(&response_data)?;
+        }
+
+        Ok(())
+    }
+
+    fn get_raw_request<'a, R: Read>(input: &'a mut R) -> crate::Result<Vec<u8>> {
         let mut size_buf = [0u8; 4];
-        stream.read_exact(&mut size_buf)?;
+        input.read_exact(&mut size_buf)?;
 
         let size = u32::from_le_bytes(size_buf) as usize;
 
         let mut msg_buf = vec![0u8; size];
-        stream.read_exact(&mut msg_buf)?;
+        input.read_exact(&mut msg_buf)?;
 
         let mut full_buffer = Vec::with_capacity(size + 4);
         full_buffer.extend_from_slice(&size_buf);
         full_buffer.extend_from_slice(&msg_buf);
 
-        match flatbuffers::size_prefixed_root::<Request>(&full_buffer) {
-            Ok(req) => {
-                info!("Valid Request Received: {:?}", req.command_type());
-
-                if let Some(response_data) = self.handle_command(req)? {
-                    stream.write_all(&response_data)?;
-                }
-
-                Ok(())
-            }
-            Err(e) => {
-                // This is where you catch "Invalid Flatbuffer" errors!
-                error!("Invalid Flatbuffer error: {:?}", e);
-
-                Err(Error::ProtocolError(e))
-            }
-        }
+        Ok(full_buffer)
     }
+
+    fn get_request<'a>(bytes: &'a Vec<u8>) -> crate::Result<Request<'a>> {
+        Ok(flatbuffers::size_prefixed_root::<Request>(&bytes)?)
+    }
+
 
     fn handle_command(&mut self, request: Request) -> crate::Result<Option<Vec<u8>>> {
         match request.command_type() {
