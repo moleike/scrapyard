@@ -131,7 +131,6 @@ impl KvStore {
             .reduce(|acc, e| acc.max(e)) // I know
     }
 
-
     /// apply log compaction
     fn merge(&mut self) -> crate::Result<()> {
         let Some(merged_file) = self.get_next_merged_file() else {

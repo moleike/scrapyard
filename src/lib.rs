@@ -1,3 +1,5 @@
+#![feature(if_let_guard)]
+
 pub mod messages;
 
 pub mod server;

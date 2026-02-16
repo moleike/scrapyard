@@ -1,7 +1,7 @@
 use std::{net::SocketAddr, process::exit, str::FromStr};
 
 use clap::{Parser, Subcommand};
-use kvs::{client::Client, Error, Result};
+use kvs::{Error, Result, client::Client};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)] // Read from `Cargo.toml`
