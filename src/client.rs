@@ -25,7 +25,7 @@ impl Client {
     pub fn get(&mut self, key: &str) -> crate::Result<String> {
         let req = messages::serialize_request_get(key);
 
-        self.stream.write_all(&req.as_bytes())?;
+        self.stream.write_all(&req)?;
 
         let buf = messages::read::<TcpStream, Response>(&mut self.stream)?;
         let res = buf.get_root()?;
@@ -51,7 +51,7 @@ impl Client {
     pub fn set(&mut self, key: &str, value: &str) -> crate::Result<()> {
         let req = messages::serialize_request_set(key, value);
 
-        self.stream.write_all(&req.as_bytes())?;
+        self.stream.write_all(&req)?;
 
         let buf = messages::read::<TcpStream, Response>(&mut self.stream)?;
         let res = buf.get_root()?;
@@ -65,7 +65,7 @@ impl Client {
     pub fn delete(&mut self, key: &str) -> crate::Result<()> {
         let req = messages::serialize_request_delete(key);
 
-        self.stream.write_all(&req.as_bytes())?;
+        self.stream.write_all(&req)?;
 
         let buf = messages::read::<TcpStream, Response>(&mut self.stream)?;
         let res = buf.get_root()?;

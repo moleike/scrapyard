@@ -50,7 +50,7 @@ impl Server {
 
         match self.handle_command(req)? {
             Some(response_data) => {
-                stream.write_all(&response_data.as_bytes())?;
+                stream.write_all(&response_data)?;
             }
             _ => (),
         }

@@ -2,7 +2,7 @@
 #[rustfmt::skip]
 mod messages_generated;
 
-use std::io::Read;
+use std::{io::Read, ops::Deref};
 
 use flatbuffers::{InvalidFlatbuffer, Verifiable};
 pub use messages_generated::messages;
@@ -21,12 +21,19 @@ where
     pub fn get_root(&'a self) -> Result<T::Inner, InvalidFlatbuffer> {
         flatbuffers::size_prefixed_root::<T>(&self.bytes)
     }
+}
 
-    /// Access the raw bytes
-    pub fn as_bytes(&self) -> &[u8] {
+impl <'a, T> Deref for OwnedFlatBuffer<T>
+where
+    T: flatbuffers::Follow<'a> + Verifiable,
+{
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
         &self.bytes
     }
 }
+
 
 pub fn serialize_request_get<'a>(key: &str) -> OwnedFlatBuffer<Request<'a>> {
     let mut builder = flatbuffers::FlatBufferBuilder::new();
